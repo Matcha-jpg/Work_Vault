@@ -1,0 +1,1 @@
+This is the vault used for work-related notes.
