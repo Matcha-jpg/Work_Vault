@@ -1,8 +1,7 @@
 This document contains a high level overview of the Lab Environment and the systems that it consists of, as well as detailed, step-by-step instruction set to replicate the COSMIAC Lab environment, granted with a few exceptions like Public IP allocations. Following the instruction set should net you a near-exact replica of the COSMIAC Lab environment.
-
 # High-Level Overview
 
-### Palo Alto Firewall
+## Palo Alto Firewall
 
 Since the lab environment will be utilizing commercial internet services, a firewall is necessary to maintain the security and integrity of the COSMIAC Lab Environment. The Palo Alto Firewall utilized in the Lab Environment is extremely customizable. This allows for very granular and verbose configuration, but this also leads to a more complex process for a proper, secure firewall configuration. The Graphical User Interface (GUI) of the Palo Alto Firewall is somewhat intuitive, but is more user-friendly to those who are proficient in securing network infrastructures.
 
@@ -10,7 +9,7 @@ As is stated above, there is a variety of customizable settings within the Palo 
 
 There are more items that you can configure for more granularity, but those settings are not of concern in our Lab deployment. In addition, this firewall can allow customers and Subject Matter Experts (SMEs) alike the ability to interact with the environment remotely for Lab demonstrations/assistance with infrastructure setup if necessary.
 
-### ESXi Hypervisor
+## ESXi Hypervisor
 
 ESXi is a Bare-metal Hypervisor from VMWare that overhauls a server's OS (in our case, a Dell Server), which allows for the efficient provisioning of server hardware and resources to host and deploy Virtual Machines (VMs) on. The ESXi hypervisor is what will be utilized to deploy all associated virtual devices necessary for the COSMIAC lab environment.
 
@@ -22,7 +21,7 @@ The area of configuration we are concerned with is primarily the Network setup. 
 
 The system will be utilizing 1 NIC for connection to the Palo Alto Firewall, 1 NIC for the StarLink Modem connection, and 1 NIC for the EC2 Connection, leaving 3 NICs unused. There are plans to enhance the lab environment with Satellite Communication Internet Service Providers (SATCOM ISPs) other than SpaceX StarLink, such as ViaSat and Hughes-Net, but these services will not be utilized in our primary tests. They will however serve to dissect and learn more information about the functionality and limitations of the SD WAN Network infrastructure, which will be noted at a later date in a revision/different document.
 
-### Control Plane
+## Control Plane
 
 The Cisco Control Plane consists of 3 devices: 
 * vSmart (also known as the Controller)
@@ -38,7 +37,7 @@ The **complete control plane connectivity** is important, as vSmart handles adve
 
 These three devices are all deployed within the Dell Server running as our ESXi Bare-metal Hypervisor.
 
-### Edge Devices (Data Plane)
+## Edge Devices (Data Plane)
 
 The Edge devices will comprise your Data Plane (Where your Data Communications happen). Your edge devices are your Edge Routers/Distant Edge Devices within your network infrastructure. The COSMIAC SD-WAN StarLink setup consists of two Edge Routers (Cisco Catalyst 8000v cEdges). Like the Control Plane devices, these Edge routers will also be deployed within our ESXi Hypervisor. 
 
@@ -50,33 +49,33 @@ The two edges will require at minimum 2 Network Adapters configured on the ESXi 
 
 After the edges are configured and have complete control plane connectivity, tunnels between edges will be created, and connectivity between sites should be established. The *Software Defined* portion of SD WAN handles the tunnel creation through the advertisement of routing and policies from the vSmart (Controller) to the Distant Edge Devices.
 
-### Quirks With Our Lab Setup
+## Quirks With Our Lab Setup
 
 There were multiple problems with the initial setup of this lab environment, so here are some key things to point out so that future deployments do not get stuck in the same place.
 
-* #### Using EC2 as a NAT Gateway/Router
-	This Lab environment utilizes an EC2 Instance not as a device that directs traffic through its interfaces from one place to another, but as another router (NOT EDGE ROUTER) that acts as our NAT device that our Edge router is connected to. Edge routers being behind NAT devices in commercial deployments is not uncommon, and a valid way to showcase layered Network infrastructure compatibility with SD WAN deployments, but there are important NAT caveats to pay attention to and avoid as they will inherently fail to work in an SD WAN environment. That list can be found here < **PLACE A LINK TO THE THING OR PROVIDE SNIPPET**
+* ### Using EC2 as a NAT Gateway/Router
+	This Lab environment utilizes an EC2 Instance not as a device that directs traffic through its interfaces from one place to another, but as another router (NOT EDGE ROUTER) that acts as our NAT device that our Edge router is connected to. Edge routers being behind NAT devices in commercial deployments is not uncommon, and a valid way to showcase layered Network infrastructure compatibility with SD WAN deployments, but there are important NAT caveats to pay attention to and avoid as they will inherently fail to work in an SD WAN environment. That list is delineated in this image below. ![[NAT-Compatibility.png]]
 
-* #### Edge Router Behind NAT Device
+* ### Edge Router Behind NAT Device
 	This is an important issue to outline as this deals with what IPs get advertised in the Edge router's TLOCs (Transport Locators). If directly connecting to the Control Plane on a LAN interface, the Edge Router will advertise the other interfaces it has on the Transport VPN using the configured IP on the device.
 	
 	This means that, if the router is behind a NAT Device, then the Edge Router will advertise its ***PRIVATE*** IP to the SD WAN Fabric. This is an issue, as other routers will try to establish a tunnel to this ***PRIVATE*** IP through the ***PUBLIC*** internet. This is inherently impossible in normal networking. The way that this is subverted is by connecting to vBond through the public internet, as vBond has an embedded STUN (Simple Traversal Utilites for NAT) Server, and can thus help Edge routers/Control Plane devices behind a NAT Device become *NAT Aware*. This is the case for our lab setup, as our Sink Edge Router is connected behind the EC2 Instance that acts as this NAT Device.
 
-* #### NOT An Air-Gapped Environment
+* ### NOT An Air-Gapped Environment
 	Initially, this lab was based off of an air-gapped system from a prior preliminary test on SD WAN infrastructure. In addition, there was confusion as to how the EC2 Instance fits into the picture in our infrastructure. Once again, the EC2 acts as a NAT Device, and while Network Emulation can likely be appended to the operational features of the EC2, it is not an inherent part of our environment. That is because we are NOT simulating network traffic, as we are dealing with realistic network traffic metrics as we are utilizing Commercial Internet Service Providers for our internet connectivity.
 	
 	The ISPs in question are SpaceX StarLink, and AWS, as the EC2 doubles as a gateway to the public internet through the AWS Fabric. The Source Edge is connected to our StarLink Modem, while the Sink Edge is connected to the EC2 Nat Device.
 	
 	The Non-Air-Gapped environment nuance is also important because, as stated earlier, we are utilizing Commercial Internet Services to construct our SD WAN fabric, leading us to a deployment that is much closer to a Commercial/Business deployment of Cisco SD WAN infrastructure. This means that the control plane has to be publicly routable to the internet. There are security risks associated with this, and to address those security risks, the Palo Alto Firewall is our answer, only allowing traffic from associated IPs and Ports to access the control plane.
 
-* #### Control Plane all behind ONE NAT Device with only ONE Public IP
+* ### Control Plane all behind ONE NAT Device with only ONE Public IP
 	This is a particular quick in our setup that caused much confusion and frustration, as since we only had a **singular public IP** to work with, that made communication to the control plane much more complex than that of a normal commercial/business deployment. Normal, Cisco suggested deployment methods mark the simplest deployment as giving each Control Plane device a public IP, but that can be expensive depending on the budget, or complications with Company-Owned IP allocations. There are deployments around this, although less suggested due to the complexity they require.
 	
 	One such issue that arises is if they are all ALSO behind the SAME NAT Device, such as in our lab environment. This necessitates the use of what is called NAT Hairpinning/Loopback, which in simpler terms is just a way for devices/clients of the NAT Device to utilize the NAT Device's public IP to communicate with others in the same/different LAN. This is the method that we utilized in our setup. Other solutions include setting up a DMZ (De-Materialized Zone) For vSmart and vManage or just vBond, but this has yet to be explored as the previous NAT Hairpinning/Loopback solution worked to solve the problem in our case.
 	
 	NAT Hairpinning/Loopback is considered complex, as you need to have a good understanding of how firewalls and routing works to accomplish configuring the correct security rules and NAT policies to put in place, let alone knowing if your particular router/firewall is capable of this functionality in the first place.
 
-* #### DTLS And Interesting Firewall Issues
+* ### DTLS And Interesting Firewall Issues
 	There was a problem in establishing complete control plane connectivity on the edge router side due to some granular firewall issues. In no place did we configure on the firewall to drop any specific packets from our trusted sources, yet any DTLS Packets that were attempting to connect to the vSmart or vManage devices behind the Palo Alto Firewall were dropped. 
 	
 	Upon granular analysis of network traffic through the usage of a router with the capability of running `tcpdump`, we were able to identify that DTLSv1.0 packets originating from the edge devices were dropped, but DTLSv1.2 packets made it through the firewall to the vManage and vSmart devices. With further inspection, we speculate that the firewall was mis-classifying our Client Hello DTLS packets (The type of packet that is utilized to establish a connection via handshake) as using a different protocol, and thus not properly identified and routed to the correct destination.
@@ -90,38 +89,101 @@ With all this said, the most important point here is that the Control Plane ***N
 
 # Step-by-Step Instructions
 
-### Palo Alto Firewall
+These instructions will only outline the software configurations of the setup. This section of this document assumes that all hardware has been properly set up, so no steps delineating anything hardware-related will be discussed.
 
+This instruction set will also be separated into sections relating to the specific component(s) the set of instructions will be concerned with. The three categories are as follows: ESXi, Palo Alto Firewall, Control Plane Devices, and Data Plane Devices, with the Control and Data Plane Devices under the umbrella of "VM Deployment".
 
-### ESXi Hypervisor
+## ESXi Hypervisor
 
-#### Network Configuration
+Connect to the host machine via its DHCP Ip given to it by the Palo Alto Firewall. In our setup, this IP was `10.10.0.2`.
+### Network Configuration
 
-##### Physical NICs
-##### vSwitches
+This configuration is going to be done under the `Networking` tab of the ESXi host machine. Click on the `Networking` Tab on the far left Navigation panel on the ESXi host GUI to access the Networking GUI and the necessary Network Configuration tools for the ESXi Host Machine.
+#### Physical NICs
 
-##### Port Groups
+In the Networking GUI Window, click on the `Physical NICs` Tab. This will display the available physical NICs on the server. The Dell Server utilized in the COSMIAC/RAPID Lab Environment has 6 physical NICs immediately available for use. The list of physical NICs are labeled `vmnic0-vmnic5` respectively.
 
-#### VM Deployment
+These physical NICs will be your interfaces for internet communication, and the associated hardware connections to your commercial internet services will be accessed utilizing these `vmnics`. These `vmnics` will be attached to your switches in the following sections as your uplinks.
+#### vSwitches
 
-##### Control Plane Devices
+In the Networking GUI Window, click on the `Virtual Switches` Tab. This will bring up the configuration menu of your vSwitches on the ESXi Host Machine. Most of the configuration settings of the vSwitches will be left at a default. 
 
-##### Edge Devices
+The COSMIAC/RAPID Lab environment utilizes three (3) total vSwitches. Follow an intuitive or set naming scheme for these switches, so that it is understood what each switch is being utilized for/what uplinks are connected to it. For simplicity, this instruction set will refer to the three (3) vSwitches as `vSwitch0`, `vSwitch1`, and `vSwitch2`.
 
-##### Client Devices
+Since the settings for each vSwitch will be kept at default, follow the steps below to set up the vSwitches. 
 
-### Control Plane
+1. Click on `Add standard virtual switch`
+2. Give your vSwitch a name. These are the names we alocated to the vSwitches in the COSMIAC/RAPID Lab Environment: PA-Switch, EC2-Switch, SatCom-WAN
+3. Click on the dropdown box for `Uplink 1` and choose the vmnic that is most appropriate for the switch. (e.g. If `vmnic1` is your EC2 Fiber connection to the AWS Outpost, then you would associate this vmnic with the EC2-Switch labeled above) 
+   **NOTE**: You can have multiple uplinks, and this is normally advised/encouraged in the case of internet outages. In the case of the SatCom-WAN Switch labeled above, you may have more than one uplink configured, but these will have to be VLAN'ed carefully to ensure the correct devices get the correct SatCom interface(s).
+4. Click on the `Add` button at the bottom of the `Add standard virtual switch` Window.
+#### Port Groups
 
+In the Networking GUI Window, click on the `Port Groups` tab. This will bring up the configuration menu of the port groups that will be attached to your vSwitches. These port groups are essentially providing your Network infrastructure with segmentation, dictating what policies are served to each group of devices connected to the switch in that particular port group. Port Groups can also be used for VLAN Tagging, in order to properly VLAN Devices/interfaces correctly with the VLAN settings of the switch or other networking device that the ESXi is/may be attached to.
+
+The COSMIAC/RAPID Lab Environment utilizes seven (7) port groups, which will be allocated to one of the above vSwitches from the earlier section. This port group section will delineate all the configurations for the seven (7) port groups utilized by the Lab Environment.
+
+##### VM Network
+
+This port group will be utilized to give the Control Plane devices the ability to be publicly routable, which from the high level overview, is crucial for the COSMIAC/RAPID Lab Environment. The reason for this is so that the WAN Interfaces of the Edge Devices are able to reach and establish complete connectivity with the Control Plane, so that the tunnels between edges can be facilitated.
+
+This port group should only have connections from the Control Plane devices during a test run, but can be used by Client devices to gain internet access for a time to install necessary packages from `apt` for further network analysis. Otherwise, connection to this port group should be disabled or removed from devices other than the Control Plane devices.
+
+1. Click on the `Add port group` button.
+2. Name the new port group `VM Network`, or whatever the naming scheme dictates.
+3. Do not assign a VLAN ID unless your network infrastructure requires you to do so. 
+   **NOTE**: In the COSMIAC/RAPID Lab Environment, this port group did not require a VLAN ID.
+4. Choose the corresponding vSwitch that is connected to the Palo Alto firewall. In the COSMIAC/RAPID Deployment, this was PA-Switch.
+5. Leave the Security settings as the defaults.
+6. Click on `Add` at the bottom right of the window.
+
+##### EC2 Connection
+
+This port group will be utilized to serve as the internet connection for the Sink Edge Device in the Lab Environment. This connection to an EC2 Instance will be facilitated through a Local Link cable, connecting the ESXi Host directly to an AWS Outpost server that will be hosting this EC2 Instance. 
+
+This EC2 instance is the NAT Device mentioned in the High Level Overview that the Sink Edge will be utilizing as a stand in in place of a secondary StarLink unit, as of the time of this deployment, only one Enterprise level StarLink terminal was procured. 
+
+1. Click on the `Add port group` button.
+2. Name the new port group `EC2Connection`, or whatever the naming scheme dictates.
+3. Do not assign a VLAN ID unless your network infrastructure requires you to do so. 
+   **NOTE**: In the COSMIAC/RAPID Lab Environment, this port group did not require a VLAN ID.
+4. Choose the corresponding vSwitch that is connected to the EC2 Instance. In the COSMIAC/RAPID Deployment, this was EC2-Switch.
+5. Leave the Security settings as the defaults.
+6. Click on `Add` at the bottom right of the window.
+
+The EC2 instance itself does not inherently service ips through DHCP, so if a device is connected to this port group, or any other port group associated with the EC2-Switch vSwitch, they need to be manually assigned an IP within the range of the subnet defined in the EC2 instance.
+
+##### StarLink-PG
+
+This port group will be used to service the WAN facing interface on the Source Edge in the Lab Environment. This will be the primary source of data-flow, as the overarching goal of the system is to run Network performance analyses on commercial SATCOM internet service providers.
+##### ViaSat-PG
+##### HughesNet-PG
+##### vpn-100-source
+##### vpn-100-sink
+
+## Palo Alto Firewall
+
+### Security Policies
+
+### Services Configuration
+
+### NAT Policies
+
+## VM Deployment
+
+### Control Plane Devices
 #### vBond
 
 #### vManage
 
 #### vSmart
 
-### Edge Devices
+### Data Plane Devices
 
-#### StarLink Source Edge
+#### Edge Devices
+##### StarLink Source Edge
 
-#### EC2 Sink Edge
+##### EC2 Sink Edge
 
-### Clients
+#### Client Devices
+
