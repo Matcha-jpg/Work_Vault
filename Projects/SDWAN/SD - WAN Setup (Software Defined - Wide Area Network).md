@@ -93,6 +93,8 @@ These instructions will only outline the software configurations of the setup. T
 
 This instruction set will also be separated into sections relating to the specific component(s) the set of instructions will be concerned with. The three categories are as follows: ESXi, Palo Alto Firewall, Control Plane Devices, and Data Plane Devices, with the Control and Data Plane Devices under the umbrella of "VM Deployment".
 
+Although the set of instructions are separated by component, following this instruction set top down should ensure full system functionality, as long as the differences in lab setups are handled accordingly.
+
 ## ESXi Hypervisor
 
 Connect to the host machine via its DHCP Ip given to it by the Palo Alto Firewall. In our setup, this IP was `10.10.0.2`.
@@ -103,7 +105,7 @@ This configuration is going to be done under the `Networking` tab of the ESXi ho
 
 In the Networking GUI Window, click on the `Physical NICs` Tab. This will display the available physical NICs on the server. The Dell Server utilized in the COSMIAC/RAPID Lab Environment has 6 physical NICs immediately available for use. The list of physical NICs are labeled `vmnic0-vmnic5` respectively.
 
-These physical NICs will be your interfaces for internet communication, and the associated hardware connections to your commercial internet services will be accessed utilizing these `vmnics`. These `vmnics` will be attached to your switches in the following sections as your uplinks.
+These physical NICs will be your interfaces for internet communication, and the associated hardware connections to your commercial internet services will be accessed utilizing these vmnics. These vmnics will be attached to your switches in the following sections as your uplinks.
 #### vSwitches
 
 In the Networking GUI Window, click on the `Virtual Switches` Tab. This will bring up the configuration menu of your vSwitches on the ESXi Host Machine. Most of the configuration settings of the vSwitches will be left at a default. 
@@ -155,12 +157,42 @@ The EC2 instance itself does not inherently service ips through DHCP, so if a de
 
 ##### StarLink-PG
 
-This port group will be used to service the WAN facing interface on the Source Edge in the Lab Environment. This will be the primary source of data-flow, as the overarching goal of the system is to run Network performance analyses on commercial SATCOM internet service providers.
+This port group will be used to service the WAN facing interface on the Source Edge in the Lab Environment. This will be the primary source of data-flow, as the overarching goal of the system is to run Network performance analyses on commercial SATCOM internet service providers. The StarLink service is the first of three to be integrated with our Environment, and will be the main point of focus for this series of Network performance tests.
+
+1. Click on the `Add port group` button.
+2. Name the new port group `StarLink-PG`, or whatever the naming scheme dictates.
+3. Assign the port group a VLAN ID of 200. 
+   **NOTE**: In the COSMIAC/RAPID Lab Environment, this port group required a VLAN ID due to the hardware configuration of the Lab environment.
+4. Choose the corresponding vSwitch that is connected to the SatCom uplinks. In the COSMIAC/RAPID Deployment, this was SatCom-WAN.
+5. Leave the Security settings as the defaults.
+6. Click on `Add` at the bottom right of the window.
+   
 ##### ViaSat-PG
 ##### HughesNet-PG
 ##### vpn-100-source
+
+This port group will be used to service the LAN facing interface of the StarLink Source Edge. This port group will also be utilized to service ips through DHCP from the Source Edge. The Data Source Client will have a connection to this port group in order to utilize the SD WAN Fabric to, as the name implies, be the TX source of data that will be used to analyze the Network Performance with. 
+
+1. Click on the `Add port group` button.
+2. Name the new port group `vpn-100-source`, or whatever the naming scheme dictates.
+3. Assign the port group a VLAN ID of 200. 
+   **NOTE**: In the COSMIAC/RAPID Lab Environment,  this port group required a VLAN ID so that it would still be segmented away from the main network that allowed for internet access, as the goal was to ensure that the DHCP server running on the Edge Routers could use this port group to service private IPs to the corresponding systems.
+4. Choose the corresponding vSwitch that is connected to the SatCom uplinks. In the COSMIAC/RAPID Deployment, this was SatCom-WAN.
+5. Leave the Security settings as the defaults.
+6. Click on `Add` at the bottom right of the window.
+   
 ##### vpn-100-sink
 
+This port group will be used to service the LAN facing interface of the EC2 Sink Edge. This port group will also be utilized to service ips through DHCP from the Sink Edge. The Data Sink Client will have a connection to this port group in order to utilize the SD WAN Fabric to, as the name implies, be the RX point of reception of the data that will be used to analyze the Network Performance.
+
+1. Click on the `Add port group` button.
+2. Name the new port group `vpn-100-source`, or whatever the naming scheme dictates.
+3. Assign the port group a VLAN ID that does not have a proper VLAN mapping, so that this port group cannot service an internet connection. 
+   **NOTE**: In the COSMIAC/RAPID Lab Environment, this port group required a VLAN ID so that it would still be segmented away from the main network that allowed for internet access, as the goal was to ensure that the DHCP server running on the Edge Routers could use this port group to service private IPs to the corresponding systems.
+4. Choose the corresponding vSwitch that is connected to the SatCom uplinks. In the COSMIAC/RAPID Deployment, this was SatCom-WAN.
+5. Leave the Security settings as the defaults.
+6. Click on `Add` at the bottom right of the window.
+   
 ## Palo Alto Firewall
 
 ### Security Policies
@@ -171,19 +203,43 @@ This port group will be used to service the WAN facing interface on the Source E
 
 ## VM Deployment
 
+This configuration will be done under the `Virtual Machines` tab. This will bring up the configuration menu for all of the Virtual Machines that you will be utilizing. Many, if not all of the devices will end up being a Virtual Machine, unless you can configure connectivity of an external device, such as a Laptop, with connectivity to the edge routers.
+
+Though the COSMIAC/RAPID deployment is entirely virtualized, the hardware components utilized in the setup enabled the virtual components to represent a full physical/commercial deployment of a small SD WAN Network Infrastructure. 
+
+This section will be split into two instruction sets, one for the Control Plane, and the other for the Data Plane.
 ### Control Plane Devices
+
+Talk to Luis about some of this, convert vBond pdf to this. 
 #### vBond
 
 #### vManage
 
 #### vSmart
 
+### Edge Devices
+#### StarLink Source Edge
+
+
+1. Click on `Create / Register VM` in the `Virtual Machines` GUI Window.
+2. Upon opening the creation window, choose the `Deploy a virtual machine from an OVF or OVA file` option, and click on the `Next` button at the bottom right of the creation window.
+3. Name the Virtual Machine `StarLink Source Edge` or whatever your naming scheme dictates. 
+4. Click the `Click to Select Files or Drag/Drop` option right below the `Enter a Name` box, and select the `c8000v-universalk9.17.15.02a.ova` OVA file. This is the file that you can utilize to spin up as many edges as your Cisco account is allotted.
+5. Choose one of the standard storage options for your new Virtual Machine. This should be a partition that can host the virtual machine to begin with. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage.
+6. Select three (3) Network Mappings. You can remove a redundant one or add another if necessary for your setup later. For the source, `GigabitEthernet1` should be `StarLink-PG`, and `GigabitEthernet2` should be `vpn-100-source`. More Network mappings can be made later to accommodate for other SATCOM or Terrestrial ISPs.
+7. Choose `8x Large - 16GB Disk` as the deployment type
+8. Choose `Thick` as the Disk provisioning
+9. It is your choice to power on automatically or not. If planning to remove a Network Mapping, I suggest making sure this box is ***unchecked***.
+
+#### EC2 Sink Edge
+
 ### Data Plane Devices
-
-#### Edge Devices
-##### StarLink Source Edge
-
-##### EC2 Sink Edge
 
 #### Client Devices
 
+##### Source Client
+
+##### Sink Client
+
+## Control Plane Setup
+## Data Plane Setup
