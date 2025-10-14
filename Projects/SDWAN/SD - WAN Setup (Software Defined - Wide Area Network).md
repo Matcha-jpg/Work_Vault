@@ -157,7 +157,9 @@ The EC2 instance itself does not inherently service ips through DHCP, so if a de
 
 ##### StarLink-PG
 
-This port group will be used to service the WAN facing interface on the Source Edge in the Lab Environment. This will be the primary source of data-flow, as the overarching goal of the system is to run Network performance analyses on commercial SATCOM internet service providers. The StarLink service is the first of three to be integrated with our Environment, and will be the main point of focus for this series of Network performance tests.
+This port group will be used to service the WAN facing interface on the Source Edge in the Lab Environment. Ideally, the lab environment would utilize StarLink on both ends, but as of the time of development, the COSMIAC-RAPID Lab Environment only had access to a single StarLink terminal. 
+
+This will be the primary source of data-flow, as the overarching goal of the system is to run Network performance analyses on commercial SATCOM internet service providers. The StarLink service is the first of three to be integrated with our Environment, and will be the main point of focus for this series of Network performance tests.
 
 1. Click on the `Add port group` button.
 2. Name the new port group `StarLink-PG`, or whatever the naming scheme dictates.
@@ -168,7 +170,25 @@ This port group will be used to service the WAN facing interface on the Source E
 6. Click on `Add` at the bottom right of the window.
    
 ##### ViaSat-PG
+
+1. Click on the `Add port group` button.
+2. Name the new port group `ViaSat-PG`, or whatever the naming scheme dictates.
+3. Assign the port group a VLAN ID of 201. 
+   **NOTE**: In the COSMIAC/RAPID Lab Environment, this port group required a VLAN ID due to the hardware configuration of the Lab environment.
+4. Choose the corresponding vSwitch that is connected to the SatCom uplinks. In the COSMIAC/RAPID Deployment, this was SatCom-WAN.
+5. Leave the Security settings as the defaults.
+6. Click on `Add` at the bottom right of the window.
+   
 ##### HughesNet-PG
+
+1. Click on the `Add port group` button.
+2. Name the new port group `HughesNet-PG`, or whatever the naming scheme dictates.
+3. Assign the port group a VLAN ID of 202. 
+   **NOTE**: In the COSMIAC/RAPID Lab Environment, this port group required a VLAN ID due to the hardware configuration of the Lab environment.
+4. Choose the corresponding vSwitch that is connected to the SatCom uplinks. In the COSMIAC/RAPID Deployment, this was SatCom-WAN.
+5. Leave the Security settings as the defaults.
+6. Click on `Add` at the bottom right of the window.
+   
 ##### vpn-100-source
 
 This port group will be used to service the LAN facing interface of the StarLink Source Edge. This port group will also be utilized to service ips through DHCP from the Source Edge. The Data Source Client will have a connection to this port group in order to utilize the SD WAN Fabric to, as the name implies, be the TX source of data that will be used to analyze the Network Performance with. 
@@ -230,7 +250,7 @@ Talk to Luis about some of this, convert vBond pdf to this.
  6. Select three (3) Network Mappings. You can remove a redundant one or add another if necessary for your setup later. For the source, `GigabitEthernet1` should be `StarLink-PG`, and `GigabitEthernet2` should be `vpn-100-source`. More Network mappings can be made later to accommodate for other SATCOM or Terrestrial ISPs.
 7. Choose `8x Large - 16GB Disk` as the deployment type
 8. Choose `Thick` as the Disk provisioning
-9. It is your choice to power on automatically or not. If planning to remove a Network Mapping, I suggest making sure this box is ***unchecked***. After 6-9 have been completed, click the `Next` button.
+9. It is your choice to power on automatically or not. If planning to add/remove a Network Mapping, I suggest making sure this box is ***unchecked***. After 6-9 have been completed, click the `Next` button.
 10. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. 
 
 #### EC2 Sink Edge
@@ -249,9 +269,7 @@ Talk to Luis about some of this, convert vBond pdf to this.
 
 ### Edge Routers
 
-#### Source Edge
-
-##### Initial Bootstrap Configuration
+#### Initial Bootstrap Configuration
 **NOTE**: If you intended for 3 total network interfaces, ***SKIP*** steps 1 and 2.
 1. In the case that you did not enable automatic startup in the previous `VM Deployment` section, power the machine off.
 2. Click on the `Edit` button in the window of your source edge VM, and add/remove network adapters as needed. After this is complete, power on the VM.
@@ -259,10 +277,14 @@ Talk to Luis about some of this, convert vBond pdf to this.
 4. Once the VM looks to be up and running, click into the terminal of the VM (Unfortunately, but also fortunately, you'll know when your mouse is within the VM's console if it disappears) and attempt to enter configuration by pressing `Enter`. This should bring up a prompt. Type `yes` to this prompt.
 5. Another prompt will follow the first one. Also type `yes` in response.
 6. This will enter you into configuration mode. This configuration will be to set your passwords. As with general security practices, ensure these passwords are secure, note them down and store them in a secure space.
-7. If the setup requests that you specify an interface to communicate with the management/control devices, enter `GigabitEthernet1`, or your desired WAN facing interface.
+7. If the setup requests that you specify an interface to communicate with the management/control devices, enter `GigabitEthernet1`, or your desired WAN facing interface. It will then ask you to provide the desired public IP and subnet mask, which if you are DHCP'ed an IP (for example, StarLink uses DHCP to allocate your public IP if using an enterprise level or higher StarLink), you can leave the defaults by just hitting enter. Otherwise, provide a static IP and the subnet mask of the interface you are on.
+   For example:
+   IP : 10.10.20.2
+   Subnet Mask: 255.255.255.0
+   This is the IP and Subnet Mask utilized for the Data Sink Edge Router in the COSMIAC-RAPID Lab Environment.
 8. Afterwards, confirm the bootstrap configuration, and the router should prompt you with this message:
    `Press RETURN to get started!`
-9. Once you see the above message, hit `Enter` on your keyboard. Then enter the following commands. The commands will be in this structure:
+9. Once you see the above message, hit `Enter` on your keyboard. When following the next set of instructions, the commands will be in this structure:
    `hostname> command`
    or
    `hostname# command`
@@ -273,177 +295,262 @@ Talk to Luis about some of this, convert vBond pdf to this.
 	4. Hit enter on your keyboard to confirm.
 	5. Type `no` to ensure you do not abort this process
 	The above sequence is required to enable your router to be in `Controller Mode`, which is synonymous to `sdwan mode`
-11. This will restart your VM. Wait for it to fully launch once more, and again this should take 5-10 minutes depending on hardware. The VM will likely complain using the error message: `Smart Lisencing has encountered an internal software error`. You can safely ignore this and hit `Enter` on your keyboard, and login to the router.
-12. The credentials used to login will be:
+10. This will restart your VM. Wait for it to fully launch once more, and again this should take 5-10 minutes depending on hardware. The VM will likely complain using the error message: `Smart Lisencing has encountered an internal software error`. You can safely ignore this and hit `Enter` on your keyboard, and login to the router.
+11. The credentials used to login will be:
     username: admin
     password: admin
 	This should prompt you to set a new password and confirm it, once again following best security practices, use a strong password and note it down in a secure location.
-13. Once logged in, you are ready to follow the router configuration portion of this setup. 
+12. Once logged in, you are ready to follow the router configuration portion of this setup. 
 
-##### Router Configuration Section
-This section will contain the commands in a list form that you have to type in order to configure the router accordingly. The commands will be in this structure:
+#### Router Configuration Section
+This section will contain the commands in a list form that you have to type in order to configure the router accordingly. When following the next set of instructions, the commands will be in this structure:
 `hostname> command`
 or
 `hostname# command`
 Depending on the step your are on. Replace `command` with the respective command as shown below.
-###### **Disable Console Logging**
+In addition, you will see interfaces named as `GigabitEthernetx`. The x in this naming scheme corresponds to the Network Adapter configured on VM Deployment, so any connection on Network Adapter 1 will be synonymous with `GigabitEthernet1` in the respective edge router. Also, unless otherwise specified, use the last x value you were prompted to provide for the configurations.
+Before engaging with these steps, on the edge router, run the following command:
+`hostname# show ip int br`
+This command will show the current interfaces that your edge router has. Note down all that start with `GigabitEthernet`, as this will come in handy later.
+##### **Disable Console Logging**
 1. `hostname# config-transaction`
 2. `hostname(config)# no logging con`
 3. `hostname(config)# commit` 
    
-###### **Change Hostname**
-1. `hostname(config)# hostname (insert desired hostname here)`
-2. `hostname(config)# commit`
+##### **Change Hostname**
+4. `hostname(config)# hostname (insert desired hostname here)`
+5. `hostname(config)# commit`
    
-###### **System Configuration**
-1. `hostname(config)# system`
-2. `hostname(config-system)# system-ip 1.1.1.x` (Replace x with a number in the inclusive range of 0-255)
-3. `hostname(config-system)# site-id (insert id here)`
-4. `hostname(config-system)# sp-organization-name "YOUR_ORG_NAME"` **NOTE**: This has to be the same org name denoted in the control plane setup, as this will cause certificate mismatches if the org name is different.
-5. `hostname(config-system)# organization-name "YOUR_ORG_NAME"` **NOTE**: This has to be the same org name denoted in the control plane setup, as this will cause certificate mismatches if the org name is different.
-6. `hostname(config-system)# vbond (insert vBond public ip here) port 12346`
-7. `hostname(config-system)# commit`
+##### **System Configuration**
+6. `hostname(config)# system`
+7. `hostname(config-system)# system-ip 1.1.1.x`
+   Replace x with a number in the inclusive range of 0-255. Refer to internal documentation for system IPs already in use. This system ip can realistically be anything within the x.x.x.x range, but this is too large of a subnet for our lab environment. 
+   
+8. `hostname(config-system)# site-id (insert id here)`
+9. `hostname(config-system)# sp-organization-name "YOUR_ORG_NAME"`
+	 **NOTE**: This has to be the same org name denoted in the control plane setup, as this will cause certificate mismatches if the org name is different. The `sp-organization-name` for the COSMIAC-RAPID Lab Environment was "RAPID-Laboratory".
+   
+10. `hostname(config-system)# organization-name "YOUR_ORG_NAME"` 
+    **NOTE**: This has to be the same org name denoted in the control plane setup, as this will cause certificate mismatches if the org name is different. The `organization-name` for the COSMIAC-RAPID Lab Environment was "RAPID-Laboratory".
 
-###### **SD WAN Router Configurations**
-**NOTE**: Repeat steps 14-20 for as many WAN facing interfaces you have.
+11. `hostname(config-system)# vbond (insert vBond public ip here) port 12346`
+12. `hostname(config-system)# commit`
+
+##### **SD WAN Router Configurations**
+**NOTE**: Repeat steps 14-20 for as many WAN facing interfaces you have. 
 13. `hostname(config-system)# sdwan`
-14. `hostname(config-sdwan)# interface GigabitEthernetx tunnel-interface` **NOTE**: Replace `x` in `GigabitEthernetx` with a number corresponding to the Network Adapter of your WAN facing interfaces 
+14. `hostname(config-sdwan)# interface GigabitEthernetx tunnel-interface` 
+    **NOTE**: Replace `x` in `GigabitEthernetx` with a number corresponding to the Network Adapter of your WAN facing interfaces.
+
 15. `hostname(config-tunnel-interface)# encapsulation ipsec weight 1`
-16. `hostname(config-tunnel-interface)# color (insert desired color here)` - [Cisco SD WAN Color & Carrier Overview][https://www.networkacademy.io/ccie-enterprise/sdwan/tloc-color-and-carrier]
+16. `hostname(config-tunnel-interface)# color (insert desired color here)`
+     [Cisco SD WAN Color & Carrier Overview][https://www.networkacademy.io/ccie-enterprise/sdwan/tloc-color-and-carrier]
+
 17. `hostname(config-tunnel-interface)# allow-service all`
 18. `hostname(config-tunnel-interface)# exit`
 19. `hostname(config-interface-GigabitEthernetx)# exit`
-20. `hostname(config-sdwan)# ip route 0.0.0.0 0.0.0.0 (insert IP used on GigabitEthernetx)`
-21. `hostname(config-sdwan)# exit`
+20. `hostname(config-sdwan)# ip route 0.0.0.0 0.0.0.0 (insert the default gateway IP used on GigabitEthernetx)`
+    This should be the default gateway of the current WAN facing interface. For example, our StarLink WAN interface uses the default gateway IP of `143.105.158.1`
 
-###### **StarLink Interface Configuration**
-22. `hostname(config)# interface GigabitEthernetx` - Replace x with the corresponding GigabitEthernet interface used for your StarLink WAN facing Network Adapter
-23. `hostname(config-if)# no shutdown`
-24. `hostname(config-if)# ip address dhcp`
-25. `hostname(config-if)# arp timeout 1200`
-26. `hostname(config-if)# ip dhcp client client-id GigabitEthernetx`
-27. `hostname(config-if)# no ip redirects`
-28. `hostname(config-if)# ip dhcp client default-router distance 1`
-29. `hostname(config-if)# ip nat outside`
-30. `hostname(config-if)# ip mtu 1500`
-31. `hostname(config-if)# load-interval 30`
-32. `hostname(config-if)# mtu 1500`
-33. `hostname(config-if)# negotiation auto`
-34. `hostname(config-if)# service-policy output shape_GigabitEthernetx`
-35. `hostname(config-if)# exit`
-36. `hostname(config)# interface Tunnel0`
-37. `hostname(config-if)# no shutdown`
-38. `hostname(config-if)# ip unnumbered GigabitEthernetx`
-39. `hostname(config-if)# no ip redirects`
-40. `hostname(config-if)# ipv6 unnumbered GigabitEthernetx`
-41. `hostname(config-if)# no ipv6 redirects`
-42. `hostname(config-if)# cts manual`
-43. `hostname(config-if-cts-manual)# no propagate sgt`
-44. `hostname(config-if-cts-manual)# exit`
-45. `hostname(config-if)# tunnel source GigabitEthernetx`
-46. `hostname(config-if)# tunnel mode sdwan`
-47. `hostname(config-if)# exit`
-48. `hostname(config)# sdwan`
-49. `hostname(config-sdwan)# interface GigabitEthernetx tunnel-interface`
-50. `hostname(config-tunnel-interface)# encapsulation ipsec weight 1`
-51. `hostname(config-tunnel-interface)# allow-service all`
-52. `hostname(config-tunnel-interface)# no border`
-53. `hostname(config-tunnel-interface)# low-bandwidth-link`
-54. `hostname(config-tunnel-interface)# no vBond-as-stun-server`
-55. `hostname(config-tunnel-interface)# vmanage-connection-preference 5`
-56. `hostname(config-tunnel-interface)# port-hop`
-57. `hostname(config-tunnel-interface)# carrier default`
-58. `hostname(config-tunnel-interface)# nat-refresh-interval 5`
-59. `hostname(config-tunnel-interface)# hello-interval 6000`
-60. `hostname(config-tunnel-interface)# hello-tolerance 600`
-61. `hostname(config-tunnel-interface)# exit`
-62. `hostname(config-interface-GigabitEthernetx)# bandwidth-downstream 250000`
-63. `hostname(config-interface-GigabitEthernetx)# qos-adaptive`
-64. `hostname(config-qos-adaptive)# downstream 200000`
-65. `hostname(config-qos-adaptive)# downstream range 80000 250000`
-66. `hostname(config-qos-adaptive)# upstream 12000`
-67. `hostname(config-qos-adaptive)# upstream range 2000 20000`
-68. `hostname(config-qos-adaptive)# exit`
-69. `hostname(config-interface-GigabitEthernetx)# exit`
-70. `hostname(config-sdwan)# exit`
-71. `hostname(config)# ip route 0.0.0.0 0.0.0.0 x.x.x.x` - the `x.x.x.x` is the default gateway of the WAN facing interface. For example, StarLink's gateway in the COSMIAC RAPID Lab Environment was: `143.105.158.1`
-72. `hostname(config)# commit`
+##### **Interface Configurations**
 
 ###### **LAN Interface Configuration**
-67. `hostname(config)# vrf definition 100`
-68. `hostname(config-vrf)# rd 1:100`
-69. `hostname(config-vrf)# address-family ipv4`
-70. `hostname(config-ipv4)# route-target export 1:100`
-71. `hostname(config-ipv4)# route-target import 1:100`
-72. `hostname(config-ipv4)# exit`
-73. `hostname(config-vrf)# address-family ipv6`
-74. `hostname(config-ipv6)# exit`
-75. `hostname(config-vrf)# exit`
-76. `hostname(config)# ip arp proxy disable`
-77. `hostname(config)# ip dhcp pool vrf-100-GigabitEthernetx` - `GigabitEthernetx` is the LAN facing interface associated with the corresponding Network Adapter.
-78. `hostname(dhcp-config)# vrf 100`
-79. `hostname(dhcp-config)# lease 1 0 0`
-80. `hostname(dhcp-config)# default-router 192.168.x.x` - `192.168.x.x` subnet is often used in production environments as the private subnet. Other viable options would be the `10.x.x.x` and `172.16.x.x - 172.31.x.x` subnets.
-81. `hostname(dhcp-config)# network 192.168.52.0 255.255.255.0`
-82. `hostname(dhcp-config)# exit`
-83. `hostname(config)# ip dhcp use vrf remote`
-84. `hostname(config)# ip forward-protocol nd`
-85. `hostname(config)# no ip ftp passive`
-86. `hostname(config)# ip name-server 8.8.8.8`
-87. `hostname(config)# ip name-server vrf 100 8.8.8.8`
-88. `hostname(config)# ip scp server enable`
-89. `hostname(config)# ip bootp server`
-90. `hostname(config)# no ip source route`
-91. `hostname(config)# no ip ssh bulk-mode` 
-92. `hostname(config)# ip tcp RST-count 10 RST-window 5000` 
-93. `hostname(config)# no ip http server` 
-94. `hostname(config)# no ip http secure-server` 
-95. `hostname(config)# ip http client source-interface GigabitEthernet2` 
-96. `hostname(config)# ip nat pool natpool1 192.168.x.x 192.168.x.x prefix length n` 
-    for example
+21. `hostname(config)# vrf definition 100`
+22. `hostname(config-vrf)# rd 1:100`
+23. `hostname(config-vrf)# address-family ipv4`
+24. `hostname(config-ipv4)# route-target export 1:100`
+25. `hostname(config-ipv4)# route-target import 1:100`
+26. `hostname(config-ipv4)# exit`
+27. `hostname(config-vrf)# address-family ipv6`
+28. `hostname(config-ipv6)# exit`
+29. `hostname(config-vrf)# exit`
+30. `hostname(config)# ip arp proxy disable`
+31. `hostname(config)# ip dhcp pool vrf-100-GigabitEthernetx`
+    `GigabitEthernetx` is the LAN facing interface associated with the corresponding Network Adapter.
+
+32. `hostname(dhcp-config)# vrf 100`
+33. `hostname(dhcp-config)# lease 1 0 0`
+34. `hostname(dhcp-config)# default-router 192.168.x.x`
+    `192.168.x.x` subnet is often used in production environments as the private subnet. Other viable options would be the `10.x.x.x` and `172.16.x.x - 172.31.x.x` subnets. For example, the command for the Data Source Edge Router that the COSMIAC-RAPID lab environment utilized was:
+    `hostname(dhcp-config)# default-router 192.168.52.1`
+    Which notionally is the Default Gateway of the LAN Facing Interface.
+
+35. `hostname(dhcp-config)# network 192.168.52.0 255.255.255.0`
+36. `hostname(dhcp-config)# exit`
+37. `hostname(config)# ip dhcp use vrf remote`
+38. `hostname(config)# ip forward-protocol nd`
+39. `hostname(config)# no ip ftp passive`
+40. `hostname(config)# ip name-server 8.8.8.8`
+41. `hostname(config)# ip name-server vrf 100 8.8.8.8`
+42. `hostname(config)# ip scp server enable`
+43. `hostname(config)# ip bootp server`
+44. `hostname(config)# no ip source route`
+45. `hostname(config)# no ip ssh bulk-mode` 
+46. `hostname(config)# ip tcp RST-count 10 RST-window 5000` 
+47. `hostname(config)# no ip http server` 
+48. `hostname(config)# no ip http secure-server` 
+49. `hostname(config)# ip http client source-interface GigabitEthernetx` 
+50. `hostname(config)# ip nat pool natpool1 192.168.x.x 192.168.x.x prefix length n` 
+    This is the NAT Address pool for the LAN interface. This will specify how large your private subnet is. For example, this is the command that was used to set this up on the Data Source Edge Router:
     `hostname(config)# ip nat pool natpool1 192.168.52.1 192.168.52.255 prefix length 24` 
-97. `hostname(config)# ip nat inside source list global-list pool natpool1 vrf 100 match-in-vrf overload` 
-98. `hostname(config)# ip nat inside source list nat-dia-vpn-hop-access-list interface GigabitEthernet1 overload` 
-99. `hostname(config)# ip nat translation tcp-timeout 3600` 
-100. `hostname(config)# ip nat translation udp-timeout 60`
-101. `hostname(config)# ip nat settings central-policy`
-102. `hostname(config)# ipv6 unicast-routing`
-103. `hostname(config)# ipv6 cef load-sharing algorithm include-ports source destination`
-104. `hostname(config)# ipv6 rip vrf-mode enable`
-105. `hostname(config)# cdp run`
-106. `hostname(config)# policy-map shape_GigabitEthernetx` - This x should correspond to your WAN facing interface.
-107. `hostname(config-pmap)# class class-default`
-108. `hostname(config-pmap-c)# shape average 12000000`
-109. `hostname(config-pmap-c)# exit`
-110. `hostname(config-pmap)# exit`
-111. `hostname(config)# interface GigabitEthernetx` - This x should correspond to your LAN facing interface.
-112. `hostname(config-if)# no shutdown`
-113. `hostname(config-if)# arp timeout 1200`
-114. `hostname(config-if)# vrf forwarding 100`
-115. `hostname(config-if)# ip address 192.168.x.x 255.255.x.x`
+
+51. `hostname(config)# ip nat inside source list global-list pool natpool1 vrf 100 match-in-vrf overload` 
+52. `hostname(config)# ip nat inside source list nat-dia-vpn-hop-access-list interface GigabitEthernetx overload`
+    Repeat this command for every WAN facing interface you have, with each corresponding x being associated with your WAN facing interfaces. For example:
+    `hostname(config)# ip nat inside source list nat-dia-vpn-hop-access-list interface GigabitEthernet1 overload`
+
+53. `hostname(config)# ip nat translation tcp-timeout 3600` 
+54. `hostname(config)# ip nat translation udp-timeout 60`
+55. `hostname(config)# ip nat settings central-policy`
+56. `hostname(config)# ipv6 unicast-routing`
+57. `hostname(config)# ipv6 cef load-sharing algorithm include-ports source destination`
+58. `hostname(config)# ipv6 rip vrf-mode enable`
+59. `hostname(config)# cdp run`
+60. `hostname(config)# policy-map shape_GigabitEthernetx` - This x should correspond to your WAN facing interface.
+61. `hostname(config-pmap)# class class-default`
+62. `hostname(config-pmap-c)# shape average 12000000`
+63. `hostname(config-pmap-c)# exit`
+64. `hostname(config-pmap)# exit`
+65. `hostname(config)# interface GigabitEthernetx` - This x should correspond to your LAN facing interface.
+66. `hostname(config-if)# no shutdown`
+67. `hostname(config-if)# arp timeout 1200`
+68. `hostname(config-if)# vrf forwarding 100`
+69. `hostname(config-if)# ip address 192.168.x.x 255.255.x.x`
      For Example:
      `hostname(config-if)# ip address 192.168.52.1 255.255.255.0`
-116. `hostname(config-if)# no ip redirects`
-117. `hostname(config-if)# ip mtu 1500`
-118. `hostname(config-if)# load-interval 30`
-119. `hostname(config-if)# mtu 1500`
-120. `hostname(config-if)# negotiation auto`
-121. `hostname(config-if)# exit`
-122. `hostname(config)# commit`
-123. `hostname(config-if)# exit`
+70. `hostname(config-if)# no ip redirects`
+71. `hostname(config-if)# ip mtu 1500`
+72. `hostname(config-if)# load-interval 30`
+73. `hostname(config-if)# mtu 1500`
+74. `hostname(config-if)# negotiation auto`
+75. `hostname(config-if)# exit`
+76. `hostname(config)# commit`
+###### **StarLink Interface Configuration**
+This is the interface linked to the connection for StarLink. Do note that *only one router at a time* can hold the StarLink's allocated public ip. Also depending on how you configured the deployment for the edge router, this connection may not match the one that is Utilized by the COSMIAC-RAPID Lab Environment. 
 
-###### **Control Plane Onboarding**
-124. `hostname# show clock` - Clock will likely be in UTC format. If time is off, adjust using next steps. Otherwise, skip step 69
-125. `hostname# clock set hh:mm:ss Day Month Year` - Where `hh` is the hour (0-23), `mm` is minutes (0-59), `ss` is seconds (0-59), `Day` is the day of the month (0-31), `Month` is the full name of the month, and `Year` is the current year in the format of `YYYY`.
-126. Access the vManage GUI through a web browser on a device connected to the Control Plane network.
-127. Hover over `Configuration` on the left side bar, and click on `WAN Edges` under the `Devices` heading. This will take you to the list of WAN Edges allocated to your Cisco SD WAN account.
-128. Generate a bootstrap config by clicking on the `...` under the `Actions` column on an available WAN Edge, and click on `Generate Bootstrap Configuration`.
-129. Ensure that for the configuration, `Cloud-Init` is the selected option. Click on the `OK` button at the bottom left of this window.
-130. Note the `uuid` and the `otp` that the bootstrap configuration generates. This will be ***VERY IMPORTANT***
-131. Go back to your ESXi GUI and navigate back to your Source edge router. Log back into the router if necessary. Then enter the command in the following step
-132. `hostname# request platform software sdwan vedge_cloud activate chassis-number (uuid) token (otp)`
+This interface was used with the Data Source Edge Router in the COSMIAC-RAPID Lab Environment.
+***Skip this set of instructions if setting up the Data Sink Edge Router.***
+77. `hostname(config)# interface GigabitEthernetx` 
+    Replace x with the corresponding GigabitEthernet interface used for your StarLink WAN facing Network Adapter. The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment.
+
+78. `hostname(config-if)# no shutdown`
+79. `hostname(config-if)# ip address dhcp`
+80. `hostname(config-if)# arp timeout 1200`
+81. `hostname(config-if)# ip dhcp client client-id GigabitEthernetx`
+82. `hostname(config-if)# no ip redirects`
+83. `hostname(config-if)# ip dhcp client default-router distance 1`
+84. `hostname(config-if)# ip nat outside`
+85. `hostname(config-if)# ip mtu 1500`
+86. `hostname(config-if)# load-interval 30`
+87. `hostname(config-if)# mtu 1500`
+88. `hostname(config-if)# negotiation auto`
+89. `hostname(config-if)# service-policy output shape_GigabitEthernetx`
+90. `hostname(config-if)# exit`
+91. `hostname(config)# interface Tunnel0`
+92. `hostname(config-if)# no shutdown`
+93. `hostname(config-if)# ip unnumbered GigabitEthernetx`
+94. `hostname(config-if)# no ip redirects`
+95. `hostname(config-if)# ipv6 unnumbered GigabitEthernetx`
+96. `hostname(config-if)# no ipv6 redirects`
+97. `hostname(config-if)# cts manual`
+98. `hostname(config-if-cts-manual)# no propagate sgt`
+99. `hostname(config-if-cts-manual)# exit`
+100. `hostname(config-if)# tunnel source GigabitEthernetx`
+101. `hostname(config-if)# tunnel mode sdwan`
+102. `hostname(config-if)# exit`
+103. `hostname(config)# sdwan`
+104. `hostname(config-sdwan)# interface GigabitEthernetx tunnel-interface`
+105. `hostname(config-tunnel-interface)# encapsulation ipsec weight 1`
+106. `hostname(config-tunnel-interface)# allow-service all`
+107. `hostname(config-tunnel-interface)# no border`
+108. `hostname(config-tunnel-interface)# low-bandwidth-link`
+109. `hostname(config-tunnel-interface)# no vBond-as-stun-server`
+110. `hostname(config-tunnel-interface)# vmanage-connection-preference 5`
+111. `hostname(config-tunnel-interface)# port-hop`
+112. `hostname(config-tunnel-interface)# carrier default`
+113. `hostname(config-tunnel-interface)# nat-refresh-interval 5`
+114. `hostname(config-tunnel-interface)# hello-interval 6000`
+115. `hostname(config-tunnel-interface)# hello-tolerance 600`
+116. `hostname(config-tunnel-interface)# exit`
+117. `hostname(config-interface-GigabitEthernetx)# bandwidth-downstream 250000`
+118. `hostname(config-interface-GigabitEthernetx)# qos-adaptive`
+119. `hostname(config-qos-adaptive)# downstream 200000`
+120. `hostname(config-qos-adaptive)# downstream range 80000 250000`
+121. `hostname(config-qos-adaptive)# upstream 12000`
+122. `hostname(config-qos-adaptive)# upstream range 2000 20000`
+123. `hostname(config-qos-adaptive)# exit`
+124. `hostname(config-interface-GigabitEthernetx)# exit`
+125. `hostname(config-sdwan)# exit`
+126. `hostname(config)# commit`
+
+###### **EC2 Interface Configuration**
+This is the interface linked to the connection for the AWS EC2 Instance. Note that you can have many routers behind this EC2 instance, as it acts as a NAT Gateway/Router that the edge router would likely be behind in a commercial SD WAN Deployment. Also depending on how you configured the deployment for the edge router, this connection may not match the one that is Utilized by the COSMIAC-RAPID Lab Environment.
+
+This interface was used with the Data Sink Edge Router in the COSMIAC-RAPID Lab Environment. ***Skip this set of instructions if setting up the Data Source Edge Router.***  
+128. `hostname(config)# interface GigabitEthernetx` - Replace x with the corresponding GigabitEthernet interface used for the Network Adapter that connects to the EC2 Instance. The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment.
+129. `hostname(config-if)# no shutdown`
+130. `hostname(config-if)# ip address dhcp`
+131. `hostname(config-if)# arp timeout 1200`
+132. `hostname(config-if)# ip dhcp client client-id GigabitEthernetx`
+133. `hostname(config-if)# no ip redirects`
+134. `hostname(config-if)# ip dhcp client default-router distance 1`
+135. `hostname(config-if)# ip nat outside`
+136. `hostname(config-if)# ip mtu 1500`
+137. `hostname(config-if)# load-interval 30`
+138. `hostname(config-if)# mtu 1500`
+139. `hostname(config-if)# negotiation auto`
+140. `hostname(config-if)# service-policy output shape_GigabitEthernetx`
+141. `hostname(config-if)# exit`
+142. `hostname(config)# interface Tunnel0`
+143. `hostname(config-if)# no shutdown`
+144. `hostname(config-if)# ip unnumbered GigabitEthernetx`
+145. `hostname(config-if)# no ip redirects`
+146. `hostname(config-if)# ipv6 unnumbered GigabitEthernetx`
+147. `hostname(config-if)# no ipv6 redirects`
+148. `hostname(config-if)# cts manual`
+149. `hostname(config-if-cts-manual)# no propagate sgt`
+150. `hostname(config-if-cts-manual)# exit`
+151. `hostname(config-if)# tunnel source GigabitEthernetx`
+152. `hostname(config-if)# tunnel mode sdwan`
+153. `hostname(config-if)# exit`
+154. `hostname(config)# sdwan`
+155. `hostname(config-sdwan)# interface GigabitEthernetx tunnel-interface`
+156. `hostname(config-tunnel-interface)# encapsulation ipsec weight 1`
+157. `hostname(config-tunnel-interface)# allow-service all`
+158. `hostname(config-tunnel-interface)# no border`
+159. `hostname(config-tunnel-interface)# low-bandwidth-link`
+160. `hostname(config-tunnel-interface)# no vBond-as-stun-server`
+161. `hostname(config-tunnel-interface)# vmanage-connection-preference 5`
+162. `hostname(config-tunnel-interface)# port-hop`
+163. `hostname(config-tunnel-interface)# carrier default`
+164. `hostname(config-tunnel-interface)# nat-refresh-interval 5`
+165. `hostname(config-tunnel-interface)# hello-interval 6000`
+166. `hostname(config-tunnel-interface)# hello-tolerance 600`
+167. `hostname(config-tunnel-interface)# exit`
+168. `hostname(config-interface-GigabitEthernetx)# bandwidth-downstream 250000`
+169. `hostname(config-interface-GigabitEthernetx)# qos-adaptive`
+170. `hostname(config-qos-adaptive)# downstream 200000`
+171. `hostname(config-qos-adaptive)# downstream range 80000 250000`
+172. `hostname(config-qos-adaptive)# upstream 12000`
+173. `hostname(config-qos-adaptive)# upstream range 2000 20000`
+174. `hostname(config-qos-adaptive)# exit`
+175. `hostname(config-interface-GigabitEthernetx)# exit`
+176. `hostname(config-sdwan)# exit
+177. `hostname(config)# ip route 0.0.0.0 0.0.0.0 x.x.x.x` - the `x.x.x.x` is the default gateway of the WAN facing interface. For example, StarLink's gateway in the COSMIAC RAPID Lab Environment was: `143.105.158.1`
+178. `hostname(config)# commit`
+
+##### **Control Plane Onboarding**
+179. `hostname# show clock` - Clock will likely be in UTC format. If time is off, adjust using next steps. Otherwise, skip step 69
+180. `hostname# clock set hh:mm:ss Day Month Year` - Where `hh` is the hour (0-23), `mm` is minutes (0-59), `ss` is seconds (0-59), `Day` is the day of the month (0-31), `Month` is the full name of the month, and `Year` is the current year in the format of `YYYY`.
+181. Access the vManage GUI through a web browser on a device connected to the Control Plane network. For example, in the COSMIAC RAPID Lab Environment, a Laptop was physically connected to the network in which the control plane resided, so vManage was accessed through a Firefox browser through the IP of vManage on that network (Which was 10.10.0.42 for the COSMIAC-RAPID Lab Environment
+182. Hover over `Configuration` on the left side bar, and click on `WAN Edges` under the `Devices` heading. This will take you to the list of WAN Edges allocated to your Cisco SD WAN account.
+183. Generate a bootstrap config by clicking on the `...` under the `Actions` column on an available WAN Edge, and click on `Generate Bootstrap Configuration`.
+184. Ensure that for the configuration, `Cloud-Init` is the selected option. Click on the `OK` button at the bottom right of this window.
+185. Note the `uuid` and the `otp` that the bootstrap configuration generates. This will be ***VERY IMPORTANT***.
+186. Go back to your ESXi GUI and navigate back to your Source edge router. Log back into the router if necessary. Then enter the command in the following step
+187. `hostname# request platform software sdwan vedge_cloud activate chassis-number (uuid) token (otp)`
     For example:
     `hostname# request platform software sdwan vedge_cloud activate chassis-number C8K-8943C275-7B78-1E88-B761-4F8045EB38A1 token e60cbdd624774ef7bd45fab8bc40c5ac`
-133. The prior command is lengthy, so **ensure** that you have the ***correct values WITHOUT any typos***. This will onboard the edge to the SD WAN fabric.
-134. Verify that your edge router has complete control plane connectivity.
+188. The prior command is lengthy, so **ensure** that you have the ***correct values WITHOUT any typos***. This will onboard the edge to the SD WAN fabric.
+189. Verify that your edge router has complete control plane connectivity.
 #### Sink Edge
