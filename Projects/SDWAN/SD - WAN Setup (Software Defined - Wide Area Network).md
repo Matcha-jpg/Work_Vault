@@ -95,6 +95,8 @@ This instruction set will also be separated into sections relating to the specif
 
 Although the set of instructions are separated by component, following this instruction set top down should ensure full system functionality, as long as the differences in lab setups are handled accordingly.
 
+***PLEASE READ THE ENTIRE STEP BEFORE ENTERING A COMMAND***
+
 ## ESXi Hypervisor
 
 Connect to the host machine via its DHCP Ip given to it by the Palo Alto Firewall. In our setup, this IP was `10.10.0.2`.
@@ -215,9 +217,11 @@ This port group will be used to service the LAN facing interface of the EC2 Sink
    
 ## Palo Alto Firewall
 
-### Security Policies
+The COSMIAC-RAPID Lab Environment is utilizing an already-existing Palo Alto firewall that had basic firewall configurations already made, and thus this instruction set will go over only the portion that was necessary for Cisco SD-WAN Functionality/Connectivity. What this means is this instruction set will assume that basic firewall configuration needs have been met prior to configuring the firewall for SD-WAN Functionality. 
 
 ### Services Configuration
+
+### Security Policies
 
 ### NAT Policies
 
@@ -313,8 +317,8 @@ What makes vBond so important in the entire scheme as the first point of contact
 
 ##### Sink Client
 
-## Control Plane Setup
-## Data Plane Setup
+## Control Plane CLI Setup
+## Data Plane CLI Setup
 
 ### Edge Routers
 
@@ -415,7 +419,7 @@ This command will show the current interfaces that your edge router has. Note do
 29. `hostname(config-vrf)# exit`
 30. `hostname(config)# ip arp proxy disable`
 31. `hostname(config)# ip dhcp pool vrf-100-GigabitEthernetx`
-    `GigabitEthernetx` is the LAN facing interface associated with the corresponding Network Adapter.
+    `GigabitEthernetx` is the LAN facing interface associated with the corresponding Network Adapter. In the COSMIAC-RAPID Lab Environment, `GigabitEthernet2` was used.
 
 32. `hostname(dhcp-config)# vrf 100`
 33. `hostname(dhcp-config)# lease 1 0 0`
@@ -480,7 +484,8 @@ This is the interface linked to the connection for StarLink. Do note that *only 
 
 This interface was used with the Data Source Edge Router in the COSMIAC-RAPID Lab Environment. In an ideal environment, there would also be a StarLink connection on the Data Sink Edge Router, but as stated previously, the COSMIAC-RAPID Lab only had access to one StarLink that allowed for a public IP Allocation.
 77. `hostname(config)# interface GigabitEthernetx` 
-    Replace x with the corresponding GigabitEthernet interface used for your StarLink WAN facing Network Adapter. The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment on the Data Source Edge Router. 
+    Replace x with the corresponding GigabitEthernet interface used for your StarLink WAN facing Network Adapter. 
+    The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment on the Data Source Edge Router. 
 
 78. `hostname(config-if)# no shutdown`
 79. `hostname(config-if)# ip address dhcp`
@@ -539,7 +544,8 @@ This is the interface linked to the connection for the AWS EC2 Instance. Note th
 
 This interface was used with the Data Sink Edge Router in the COSMIAC-RAPID Lab Environment. 
 128. `hostname(config)# interface GigabitEthernetx`
-     Replace x with the corresponding GigabitEthernet interface used for the Network Adapter that connects to the EC2 Instance. The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment on the Data Sink Edge Router.
+     Replace x with the corresponding GigabitEthernet interface used for the Network Adapter that connects to the EC2 Instance. 
+     The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment on the Data Sink Edge Router.
 
 129. `hostname(config-if)# no shutdown`
 130. `hostname(config-if)# ip address x.x.x.x m.m.m.m`
@@ -577,24 +583,23 @@ This interface was used with the Data Sink Edge Router in the COSMIAC-RAPID Lab 
 157. `hostname(config-tunnel-interface)# port-hop`
 158. `hostname(config-tunnel-interface)# carrier default`
 159. `hostname(config-tunnel-interface)# nat-refresh-interval 5`
-160. `hostname(config-tunnel-interface)# hello-interval 6000`
-161. `hostname(config-tunnel-interface)# hello-tolerance 600`
-162. `hostname(config-tunnel-interface)# exit`
-163. `hostname(config-interface-GigabitEthernetx)# exit`
-164. `hostname(config-sdwan)# exit
-165. `hostname(config)# commit`
+160. `hostname(config-tunnel-interface)# exit`
+161. `hostname(config-interface-GigabitEthernetx)# exit`
+162. `hostname(config-sdwan)# exit
+163. `hostname(config)# commit`
 
 ##### **Control Plane Onboarding**
-167. `hostname# show clock` - Clock will likely be in UTC format. If time is off, adjust using next steps. Otherwise, skip step 168.
-168. `hostname# clock set hh:mm:ss Day Month Year` - Where `hh` is the hour (0-23), `mm` is minutes (0-59), `ss` is seconds (0-59), `Day` is the day of the month (0-31), `Month` is the full name of the month, and `Year` is the current year in the format of `YYYY`.
-169. Access the vManage GUI through a web browser on a device connected to the Control Plane network. For example, in the COSMIAC RAPID Lab Environment, a Laptop was physically connected to the network in which the control plane resided, so vManage was accessed through a Firefox browser through the IP of vManage on that network (Which was 10.10.0.42 for the COSMIAC-RAPID Lab Environment
-170. Hover over `Configuration` on the left side bar, and click on `WAN Edges` under the `Devices` heading. This will take you to the list of WAN Edges allocated to your Cisco SD WAN account.
-171. Generate a bootstrap config by clicking on the `...` under the `Actions` column on an available WAN Edge, and click on `Generate Bootstrap Configuration`.
-172. Ensure that for the configuration, `Cloud-Init` is the selected option. Click on the `OK` button at the bottom right of this window.
-173. Note the `uuid` and the `otp` that the bootstrap configuration generates. This will be ***VERY IMPORTANT***.
-174. Go back to your ESXi GUI and navigate back to your current edge router. Log back into the router if necessary. Then enter the command in the following step
-175. `hostname# request platform software sdwan vedge_cloud activate chassis-number (uuid) token (otp)`
+164. `hostname# show clock` - Clock will likely be in UTC format. If time is off, adjust using next steps. Otherwise, skip step 168.
+165. `hostname# clock set hh:mm:ss Day Month Year` - Where `hh` is the hour (0-23), `mm` is minutes (0-59), `ss` is seconds (0-59), `Day` is the day of the month (0-31), `Month` is the full name of the month, and `Year` is the current year in the format of `YYYY`.
+166. Access the vManage GUI through a web browser on a device connected to the Control Plane network. For example, in the COSMIAC RAPID Lab Environment, a Laptop was physically connected to the network in which the control plane resided, so vManage was accessed through a Firefox browser through the IP of vManage on that network (Which was 10.10.0.42 for the COSMIAC-RAPID Lab Environment
+167. Hover over `Configuration` on the left side bar, and click on `WAN Edges` under the `Devices` heading. This will take you to the list of WAN Edges allocated to your Cisco SD WAN account.
+168. Generate a bootstrap config by clicking on the `...` under the `Actions` column on an available WAN Edge, and click on `Generate Bootstrap Configuration`.
+169. Ensure that for the configuration, `Cloud-Init` is the selected option. Click on the `OK` button at the bottom right of this window.
+170. Note the `uuid` and the `otp` that the bootstrap configuration generates. This will be ***VERY IMPORTANT***.
+171. Go back to your ESXi GUI and navigate back to your current edge router. Log back into the router if necessary. Then enter the command in the following step
+172. `hostname# request platform software sdwan vedge_cloud activate chassis-number (uuid) token (otp)`
     For example:
     `hostname# request platform software sdwan vedge_cloud activate chassis-number C8K-8943C275-7B78-1E88-B761-4F8045EB38A1 token e60cbdd624774ef7bd45fab8bc40c5ac`
-176. The prior command is lengthy, so **ensure** that you have the ***correct values WITHOUT any typos***. This will onboard the edge to the SD WAN fabric.
-177. Verify that your edge router has complete control plane connectivity.
+173. The prior command is lengthy, so **ensure** that you have the ***correct values WITHOUT any typos***. This will onboard the edge to the SD WAN fabric.
+174. Verify that your edge router has complete control plane connectivity using the following command:
+     `hostname# show sdwan control connections`
