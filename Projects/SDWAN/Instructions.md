@@ -174,7 +174,6 @@ This command will show the current interfaces that your edge router has. Note do
 73. `hostname(config-if)# mtu 1500`
 74. `hostname(config-if)# negotiation auto`
 75. `hostname(config-if)# exit`
-76. `hostname(config)# commit`
 
 ###### **StarLink Interface Configuration**
 ***Skip this set of instructions if setting up the Data Sink Edge Router.***
