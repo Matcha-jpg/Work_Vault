@@ -155,14 +155,14 @@ This EC2 instance is the NAT Device mentioned in the High Level Overview that th
 
 The EC2 instance itself does not inherently service ips through DHCP, so if a device is connected to this port group, or any other port group associated with the EC2-Switch vSwitch, they need to be manually assigned an IP within the range of the subnet defined in the EC2 instance.
 
-##### StarLink-PG
+##### StarLink-Source-PG
 
 This port group will be used to service the WAN facing interface on the Source Edge in the Lab Environment. Ideally, the lab environment would utilize StarLink on both ends, but as of the time of development, the COSMIAC-RAPID Lab Environment only had access to a single StarLink terminal. 
 
 This will be the primary source of data-flow, as the overarching goal of the system is to run Network performance analyses on commercial SATCOM internet service providers. The StarLink service is the first of three to be integrated with our Environment, and will be the main point of focus for this series of Network performance tests.
 
 1. Click on the `Add port group` button.
-2. Name the new port group `StarLink-PG`, or whatever the naming scheme dictates.
+2. Name the new port group `StarLink-Source-PG`, or whatever the naming scheme dictates.
 3. Assign the port group a VLAN ID of 200. 
    **NOTE**: In the COSMIAC/RAPID Lab Environment, this port group required a VLAN ID due to the hardware configuration of the Lab environment.
 4. Choose the corresponding vSwitch that is connected to the SatCom uplinks. In the COSMIAC/RAPID Deployment, this was SatCom-WAN.
@@ -191,7 +191,7 @@ This will be the primary source of data-flow, as the overarching goal of the sys
    
 ##### vpn-100-source
 
-This port group will be used to service the LAN facing interface of the StarLink Source Edge. This port group will also be utilized to service ips through DHCP from the Source Edge. The Data Source Client will have a connection to this port group in order to utilize the SD WAN Fabric to, as the name implies, be the TX source of data that will be used to analyze the Network Performance with. 
+This port group will be used to service the LAN facing interface of the StarLink Source Edge. This port group will also be utilized to service IPs through DHCP from the Source Edge. The Data Source Client will have a connection to this port group in order to utilize the SD WAN Fabric to, as the name implies, be the TX source of data that will be used to analyze the Network Performance with. 
 
 1. Click on the `Add port group` button.
 2. Name the new port group `vpn-100-source`, or whatever the naming scheme dictates.
@@ -203,7 +203,7 @@ This port group will be used to service the LAN facing interface of the StarLink
    
 ##### vpn-100-sink
 
-This port group will be used to service the LAN facing interface of the EC2 Sink Edge. This port group will also be utilized to service ips through DHCP from the Sink Edge. The Data Sink Client will have a connection to this port group in order to utilize the SD WAN Fabric to, as the name implies, be the RX point of reception of the data that will be used to analyze the Network Performance.
+This port group will be used to service the LAN facing interface of the EC2 Sink Edge. This port group will also be utilized to service IPs through DHCP from the Sink Edge. The Data Sink Client will have a connection to this port group in order to utilize the SD WAN Fabric to, as the name implies, be the RX point of reception of the data that will be used to analyze the Network Performance.
 
 1. Click on the `Add port group` button.
 2. Name the new port group `vpn-100-source`, or whatever the naming scheme dictates.
@@ -230,8 +230,32 @@ Though the COSMIAC/RAPID deployment is entirely virtualized, the hardware compon
 This section will be split into two instruction sets, one for the Control Plane, and the other for the Data Plane.
 ### Control Plane Devices
 
-Talk to Luis about some of this, convert vBond pdf to this. 
+The Control Plane devices are the central brains of the system, and are all required for Cisco SD WAN Functionality. There are three (3) control plane devices, vBond (also known as the Validator), vSmart (also known as the Controller), and vManage (also known as the Manager), all of which will be detailed in the following sections.
 #### vBond
+
+The vBond (Validator) control plane device handles the validation of all devices, control and data plane alike. All Cisco SD WAN Devices must make first contact with vBond before any of the other SD WAN components. vBond is the window/gateway into the SD WAN Fabric, and is what helps facilitate initial route establishments between edge devices and control plane devices. 
+
+What makes vBond so important in the entire scheme as the first point of contact is its role as the Validator, as it ensures that the devices connecting to it/attempting to join into the fabric are legitimate non-malicious devices to the best of its ability. Essentially, it acts as the initial "security guard" of the system.
+
+1. Click on `Create / Register VM` in the `Virtual Machines` GUI Window.
+2. Upon opening the creation window, choose the `Deploy a virtual machine from an OVF or OVA file` option, and click on the `Next` button at the bottom right of the creation window.
+3. Name the Virtual Machine `vBond` or whatever your naming scheme dictates. 
+
+4. Click the `Click to Select Files or Drag/Drop` option right below the `Enter a Name` box, and select the `viptela-bond-20.15.20genericx86-64.ova` OVA file, if you have it available. Otherwise you may have to download this file from the ESXi host client itself, or procure it from the associated personnel that has access to this file.
+	   1. To check if this file is in your ESXi host client, navigate to the `Storage` menu using the far left sidebar on your ESXi GUI.
+	   2. In the `Storage` Menu, there exists a table denoting the drives that are available for your ESXi host client. Above this table is a bar that should have the `Datastore browser` button. Click this button.
+	   3. This will bring up another File system-esque menu. Look through your storage options/ask associated personnel for the location where `.ova` files are stored within the ESXi host client, if any. For the COSMIAC-RAPID Lab Environment, this location was in the `ExtraStore` storage partition, in the `OVAs` directory.
+	   4. Once the file has been located/you have found the associated personnel who has access to this file, download the file onto your local machine.
+   **NOTE**: This is the file that you can utilize to spin up as vBond control plane devices as your Cisco account is allotted.
+   
+5. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button.
+
+ 6. Select two (2) Network Mappings. You can remove a redundant one or add another if necessary for your setup later. For the vBond in the COSMIAC-RAPID Lab environment, `VM Network` was `VM Network`, and `VM Network1` was removed before the launch of vBond. More Network mappings can be made later as necessary.
+    **NOTE**: If you do not know how many Network Adapters/interfaces you need refer to related diagrams/documentation for how many Network Adapters should exist in the respective control plane device. For the COSMIAC-RAPID Lab Environment, there were **two** (2) total network adapters for each edge device.
+
+7. Choose `Thick` as the Disk provisioning
+8. It is your choice to power on automatically or not. If planning to add/remove a Network Mapping, I suggest making sure this box is ***unchecked***. After 6-9 have been completed, click the `Next` button.
+9. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. 
 
 #### vManage
 
@@ -240,14 +264,22 @@ Talk to Luis about some of this, convert vBond pdf to this.
 ### Edge Devices
 #### StarLink Source Edge
 
-
 1. Click on `Create / Register VM` in the `Virtual Machines` GUI Window.
 2. Upon opening the creation window, choose the `Deploy a virtual machine from an OVF or OVA file` option, and click on the `Next` button at the bottom right of the creation window.
 3. Name the Virtual Machine `StarLink Source Edge` or whatever your naming scheme dictates. 
-4. Click the `Click to Select Files or Drag/Drop` option right below the `Enter a Name` box, and select the `c8000v-universalk9.17.15.02a.ova` OVA file.
+
+4. Click the `Click to Select Files or Drag/Drop` option right below the `Enter a Name` box, and select the `c8000v-universalk9.17.15.02a.ova` OVA file, if you have it available. Otherwise you may have to download this file from the ESXi host client itself, or procure it from the associated personnel that has access to this file.
+	   1. To check if this file is in your ESXi host client, navigate to the `Storage` menu using the far left sidebar on your ESXi GUI.
+	   2. In the `Storage` Menu, there exists a table denoting the drives that are available for your ESXi host client. Above this table is a bar that should have the `Datastore browser` button. Click this button.
+	   3. This will bring up another File system-esque menu. Look through your storage options/ask associated personnel for the location where `.ova` files are stored within the ESXi host client, if any. For the COSMIAC-RAPID Lab Environment, this location was in the `ExtraStore` storage partition, in the `OVAs` directory.
+	   4. Once the file has been located/you have found the associated personnel who has access to this file, download the file onto your local machine.
    **NOTE**: This is the file that you can utilize to spin up as many edges as your Cisco account is allotted.
-5. Choose one of the standard storage options for your new Virtual Machine. This should be a partition that can host the virtual machine to begin with. (The storage option may be named Datastore, Extrastore, etc.) Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button.
- 6. Select three (3) Network Mappings. You can remove a redundant one or add another if necessary for your setup later. For the source, `GigabitEthernet1` should be `StarLink-PG`, and `GigabitEthernet2` should be `vpn-100-source`. More Network mappings can be made later to accommodate for other SATCOM or Terrestrial ISPs.
+   
+5. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button.
+
+ 6. Select three (3) Network Mappings. You can remove a redundant one or add another if necessary for your setup later. For the Data Source Edge in the COSMIAC-RAPID Lab environment, `GigabitEthernet1` was `StarLink-source-PG`, and `GigabitEthernet2` was `source-vpn-100`. More Network mappings can be made later to accommodate for other SATCOM or Terrestrial ISPs. 
+    **NOTE**: If you do not know how many Network Adapters/interfaces you need refer to related diagrams/documentation for how many Network Adapters should exist in the respective edge device. For the COSMIAC-RAPID Lab Environment, there were **two** (2) total network adapters for each edge device.
+
 7. Choose `8x Large - 16GB Disk` as the deployment type
 8. Choose `Thick` as the Disk provisioning
 9. It is your choice to power on automatically or not. If planning to add/remove a Network Mapping, I suggest making sure this box is ***unchecked***. After 6-9 have been completed, click the `Next` button.
@@ -255,12 +287,29 @@ Talk to Luis about some of this, convert vBond pdf to this.
 
 #### EC2 Sink Edge
 
+1. Click on `Create / Register VM` in the `Virtual Machines` GUI Window.
+2. Upon opening the creation window, choose the `Deploy a virtual machine from an OVF or OVA file` option, and click on the `Next` button at the bottom right of the creation window.
+3. Name the Virtual Machine `EC2 Sink Edge` or whatever your naming scheme dictates. 
+4. Click the `Click to Select Files or Drag/Drop` option right below the `Enter a Name` box, and select the `c8000v-universalk9.17.15.02a.ova` OVA file, if you have it available. Otherwise you may have to download this file from the ESXi host client itself, or procure it from the associated personnel that has access to this file.
+	   1. To check if this file is in your ESXi host client, navigate to the `Storage` menu using the far left sidebar on your ESXi GUI.
+	   2. In the `Storage` Menu, there exists a table denoting the drives that are available for your ESXi host client. Above this table is a bar that should have the `Datastore browser` button. Click this button.
+	   3. This will bring up another File system-esque menu. Look through your storage options/ask associated personnel for the location where `.ova` files are stored within the ESXi host client, if any. For the COSMIAC-RAPID Lab Environment, this location was in the `ExtraStore` storage partition, in the `OVAs` directory.
+	   4. Once the file has been located/you have found the associated personnel who has access to this file, download the file onto your local machine.
+   **NOTE**: This is the file that you can utilize to spin up as many edges as your Cisco account is allotted.
+5. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button. 
+ 6. Select three (3) Network Mappings. You can remove a redundant one or add another if necessary for your setup later. For the Data Sink Edge Router in the COSMIAC-RAPID Lab Environment, `GigabitEthernet1` was `EC2Connection`, and `GigabitEthernet2` was `sink-vpn-100`. More Network mappings can be made later to accommodate for other SATCOM or Terrestrial ISPs.
+    **NOTE**: If you do not know how many Network Adapters/interfaces you need refer to related diagrams/documentation for how many Network Adapters should exist in the respective edge device. For the COSMIAC-RAPID Lab Environment, there were **two** (2) total network adapters for each edge device.
+
+7. Choose `8x Large - 16GB Disk` as the deployment type
+8. Choose `Thick` as the Disk provisioning
+9. It is your choice to power on automatically or not. If planning to add/remove a Network Mapping, I suggest making sure this box is ***unchecked***. After 6-9 have been completed, click the `Next` button.
+10. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. 
+
 ### Data Plane Devices
 
 #### Client Devices
 
 ##### Source Client
-
 
 ##### Sink Client
 
@@ -375,7 +424,7 @@ This command will show the current interfaces that your edge router has. Note do
     `hostname(dhcp-config)# default-router 192.168.52.1`
     Which notionally is the Default Gateway of the LAN Facing Interface.
 
-35. `hostname(dhcp-config)# network 192.168.52.0 255.255.255.0`
+35. `hostname(dhcp-config)# network 192.168.52.0 255.255.255.0` - GENERALIZE THIS
 36. `hostname(dhcp-config)# exit`
 37. `hostname(config)# ip dhcp use vrf remote`
 38. `hostname(config)# ip forward-protocol nd`
@@ -390,7 +439,7 @@ This command will show the current interfaces that your edge router has. Note do
 47. `hostname(config)# no ip http server` 
 48. `hostname(config)# no ip http secure-server` 
 49. `hostname(config)# ip http client source-interface GigabitEthernetx` 
-50. `hostname(config)# ip nat pool natpool1 192.168.x.x 192.168.x.x prefix length n` 
+50. `hostname(config)# ip nat pool natpool1 192.168.x.x 192.168.x.x prefix-length n` 
     This is the NAT Address pool for the LAN interface. This will specify how large your private subnet is. For example, this is the command that was used to set this up on the Data Source Edge Router:
     `hostname(config)# ip nat pool natpool1 192.168.52.1 192.168.52.255 prefix length 24` 
 
@@ -424,14 +473,14 @@ This command will show the current interfaces that your edge router has. Note do
 73. `hostname(config-if)# mtu 1500`
 74. `hostname(config-if)# negotiation auto`
 75. `hostname(config-if)# exit`
-76. `hostname(config)# commit`
+
 ###### **StarLink Interface Configuration**
+***Skip this set of instructions if setting up the Data Sink Edge Router.***
 This is the interface linked to the connection for StarLink. Do note that *only one router at a time* can hold the StarLink's allocated public ip. Also depending on how you configured the deployment for the edge router, this connection may not match the one that is Utilized by the COSMIAC-RAPID Lab Environment. 
 
-This interface was used with the Data Source Edge Router in the COSMIAC-RAPID Lab Environment.
-***Skip this set of instructions if setting up the Data Sink Edge Router.***
+This interface was used with the Data Source Edge Router in the COSMIAC-RAPID Lab Environment. In an ideal environment, there would also be a StarLink connection on the Data Sink Edge Router, but as stated previously, the COSMIAC-RAPID Lab only had access to one StarLink that allowed for a public IP Allocation.
 77. `hostname(config)# interface GigabitEthernetx` 
-    Replace x with the corresponding GigabitEthernet interface used for your StarLink WAN facing Network Adapter. The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment.
+    Replace x with the corresponding GigabitEthernet interface used for your StarLink WAN facing Network Adapter. The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment on the Data Source Edge Router. 
 
 78. `hostname(config-if)# no shutdown`
 79. `hostname(config-if)# ip address dhcp`
@@ -461,96 +510,91 @@ This interface was used with the Data Source Edge Router in the COSMIAC-RAPID La
 103. `hostname(config)# sdwan`
 104. `hostname(config-sdwan)# interface GigabitEthernetx tunnel-interface`
 105. `hostname(config-tunnel-interface)# encapsulation ipsec weight 1`
-106. `hostname(config-tunnel-interface)# allow-service all`
-107. `hostname(config-tunnel-interface)# no border`
-108. `hostname(config-tunnel-interface)# low-bandwidth-link`
-109. `hostname(config-tunnel-interface)# no vBond-as-stun-server`
-110. `hostname(config-tunnel-interface)# vmanage-connection-preference 5`
-111. `hostname(config-tunnel-interface)# port-hop`
-112. `hostname(config-tunnel-interface)# carrier default`
-113. `hostname(config-tunnel-interface)# nat-refresh-interval 5`
-114. `hostname(config-tunnel-interface)# hello-interval 6000`
-115. `hostname(config-tunnel-interface)# hello-tolerance 600`
-116. `hostname(config-tunnel-interface)# exit`
-117. `hostname(config-interface-GigabitEthernetx)# bandwidth-downstream 250000`
-118. `hostname(config-interface-GigabitEthernetx)# qos-adaptive`
-119. `hostname(config-qos-adaptive)# downstream 200000`
-120. `hostname(config-qos-adaptive)# downstream range 80000 250000`
-121. `hostname(config-qos-adaptive)# upstream 12000`
-122. `hostname(config-qos-adaptive)# upstream range 2000 20000`
-123. `hostname(config-qos-adaptive)# exit`
-124. `hostname(config-interface-GigabitEthernetx)# exit`
-125. `hostname(config-sdwan)# exit`
-126. `hostname(config)# commit`
+106. `hostname(config-tunnel-interface)# color blue`
+107. `hostname(config-tunnel-interface)# allow-service all`
+108. `hostname(config-tunnel-interface)# no border`
+109. `hostname(config-tunnel-interface)# low-bandwidth-link`
+110. `hostname(config-tunnel-interface)# no vBond-as-stun-server`
+111. `hostname(config-tunnel-interface)# vmanage-connection-preference 5`
+112. `hostname(config-tunnel-interface)# port-hop`
+113. `hostname(config-tunnel-interface)# carrier default`
+114. `hostname(config-tunnel-interface)# nat-refresh-interval 5`
+115. `hostname(config-tunnel-interface)# hello-interval 6000`
+116. `hostname(config-tunnel-interface)# hello-tolerance 600`
+117. `hostname(config-tunnel-interface)# exit`
+118. `hostname(config-interface-GigabitEthernetx)# bandwidth-downstream 250000`
+119. `hostname(config-interface-GigabitEthernetx)# qos-adaptive`
+120. `hostname(config-qos-adaptive)# downstream 200000`
+121. `hostname(config-qos-adaptive)# downstream range 80000 250000`
+122. `hostname(config-qos-adaptive)# upstream 12000`
+123. `hostname(config-qos-adaptive)# upstream range 2000 20000`
+124. `hostname(config-qos-adaptive)# exit`
+125. `hostname(config-interface-GigabitEthernetx)# exit`
+126. `hostname(config-sdwan)# exit`
+127. `hostname(config)# commit`
 
 ###### **EC2 Interface Configuration**
+***Skip this set of instructions if setting up the Data Source Edge Router.***  
 This is the interface linked to the connection for the AWS EC2 Instance. Note that you can have many routers behind this EC2 instance, as it acts as a NAT Gateway/Router that the edge router would likely be behind in a commercial SD WAN Deployment. Also depending on how you configured the deployment for the edge router, this connection may not match the one that is Utilized by the COSMIAC-RAPID Lab Environment.
 
-This interface was used with the Data Sink Edge Router in the COSMIAC-RAPID Lab Environment. ***Skip this set of instructions if setting up the Data Source Edge Router.***  
-128. `hostname(config)# interface GigabitEthernetx` - Replace x with the corresponding GigabitEthernet interface used for the Network Adapter that connects to the EC2 Instance. The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment.
+This interface was used with the Data Sink Edge Router in the COSMIAC-RAPID Lab Environment. 
+128. `hostname(config)# interface GigabitEthernetx`
+     Replace x with the corresponding GigabitEthernet interface used for the Network Adapter that connects to the EC2 Instance. The corresponding interface was `GigabitEthernet1` for the COSMIAC-RAPID Lab Environment on the Data Sink Edge Router.
+
 129. `hostname(config-if)# no shutdown`
-130. `hostname(config-if)# ip address dhcp`
+130. `hostname(config-if)# ip address x.x.x.x m.m.m.m`
+     Here, we are setting a static IP address that is on the subnet that your EC2 is handling routing on. For the COSMIAC-RAPID Lab Environment, the command was the following:
+     `hostname(config-if)# ip address 10.10.20.2 255.255.255.0`
+     This command entails that on interface `GigabitEthernetx`, the router gets the IP `10.10.20.2` and is on the `10.10.20.1/24` subnet due to the `255.255.255.0` subnet mask.
+     **NOTE**: DO NOT USE `10.10.20.2` IF IN THE COSMIAC-RAPID LAB ENVIRONMENT. Use anything between `10.10.20.3` - `10.10.20.254` inclusive.
+
 131. `hostname(config-if)# arp timeout 1200`
-132. `hostname(config-if)# ip dhcp client client-id GigabitEthernetx`
-133. `hostname(config-if)# no ip redirects`
-134. `hostname(config-if)# ip dhcp client default-router distance 1`
-135. `hostname(config-if)# ip nat outside`
-136. `hostname(config-if)# ip mtu 1500`
-137. `hostname(config-if)# load-interval 30`
-138. `hostname(config-if)# mtu 1500`
-139. `hostname(config-if)# negotiation auto`
-140. `hostname(config-if)# service-policy output shape_GigabitEthernetx`
-141. `hostname(config-if)# exit`
-142. `hostname(config)# interface Tunnel0`
-143. `hostname(config-if)# no shutdown`
-144. `hostname(config-if)# ip unnumbered GigabitEthernetx`
-145. `hostname(config-if)# no ip redirects`
-146. `hostname(config-if)# ipv6 unnumbered GigabitEthernetx`
-147. `hostname(config-if)# no ipv6 redirects`
-148. `hostname(config-if)# cts manual`
-149. `hostname(config-if-cts-manual)# no propagate sgt`
-150. `hostname(config-if-cts-manual)# exit`
-151. `hostname(config-if)# tunnel source GigabitEthernetx`
-152. `hostname(config-if)# tunnel mode sdwan`
-153. `hostname(config-if)# exit`
-154. `hostname(config)# sdwan`
-155. `hostname(config-sdwan)# interface GigabitEthernetx tunnel-interface`
-156. `hostname(config-tunnel-interface)# encapsulation ipsec weight 1`
-157. `hostname(config-tunnel-interface)# allow-service all`
-158. `hostname(config-tunnel-interface)# no border`
-159. `hostname(config-tunnel-interface)# low-bandwidth-link`
-160. `hostname(config-tunnel-interface)# no vBond-as-stun-server`
-161. `hostname(config-tunnel-interface)# vmanage-connection-preference 5`
-162. `hostname(config-tunnel-interface)# port-hop`
-163. `hostname(config-tunnel-interface)# carrier default`
-164. `hostname(config-tunnel-interface)# nat-refresh-interval 5`
-165. `hostname(config-tunnel-interface)# hello-interval 6000`
-166. `hostname(config-tunnel-interface)# hello-tolerance 600`
-167. `hostname(config-tunnel-interface)# exit`
-168. `hostname(config-interface-GigabitEthernetx)# bandwidth-downstream 250000`
-169. `hostname(config-interface-GigabitEthernetx)# qos-adaptive`
-170. `hostname(config-qos-adaptive)# downstream 200000`
-171. `hostname(config-qos-adaptive)# downstream range 80000 250000`
-172. `hostname(config-qos-adaptive)# upstream 12000`
-173. `hostname(config-qos-adaptive)# upstream range 2000 20000`
-174. `hostname(config-qos-adaptive)# exit`
-175. `hostname(config-interface-GigabitEthernetx)# exit`
-176. `hostname(config-sdwan)# exit
-177. `hostname(config)# ip route 0.0.0.0 0.0.0.0 x.x.x.x` - the `x.x.x.x` is the default gateway of the WAN facing interface. For example, StarLink's gateway in the COSMIAC RAPID Lab Environment was: `143.105.158.1`
-178. `hostname(config)# commit`
+132. `hostname(config-if)# no ip redirects`
+133. `hostname(config-if)# ip nat outside`
+134. `hostname(config-if)# ip mtu 1500`
+135. `hostname(config-if)# load-interval 30`
+136. `hostname(config-if)# mtu 1500`
+137. `hostname(config-if)# negotiation auto`
+138. `hostname(config-if)# service-policy output shape_GigabitEthernetx`
+139. `hostname(config-if)# exit`
+140. `hostname(config)# interface Tunnel0`
+141. `hostname(config-if)# no shutdown`
+142. `hostname(config-if)# ip unnumbered GigabitEthernetx`
+143. `hostname(config-if)# no ip redirects`
+144. `hostname(config-if)# ipv6 unnumbered GigabitEthernetx`
+145. `hostname(config-if)# no ipv6 redirects`
+146. `hostname(config-if)# tunnel source GigabitEthernetx`
+147. `hostname(config-if)# tunnel mode sdwan`
+148. `hostname(config-if)# exit`
+149. `hostname(config)# sdwan`
+150. `hostname(config-sdwan)# interface GigabitEthernetx tunnel-interface`
+151. `hostname(config-tunnel-interface)# encapsulation ipsec weight 1`
+152. `hostname(config-tunnel-interface)# color blue`
+153. `hostname(config-tunnel-interface)# allow-service all`
+154. `hostname(config-tunnel-interface)# no border`
+155. `hostname(config-tunnel-interface)# no vbond-as-stun-server`
+156. `hostname(config-tunnel-interface)# vmanage-connection-preference 5`
+157. `hostname(config-tunnel-interface)# port-hop`
+158. `hostname(config-tunnel-interface)# carrier default`
+159. `hostname(config-tunnel-interface)# nat-refresh-interval 5`
+160. `hostname(config-tunnel-interface)# hello-interval 6000`
+161. `hostname(config-tunnel-interface)# hello-tolerance 600`
+162. `hostname(config-tunnel-interface)# exit`
+163. `hostname(config-interface-GigabitEthernetx)# exit`
+164. `hostname(config-sdwan)# exit
+165. `hostname(config)# commit`
 
 ##### **Control Plane Onboarding**
-179. `hostname# show clock` - Clock will likely be in UTC format. If time is off, adjust using next steps. Otherwise, skip step 69
-180. `hostname# clock set hh:mm:ss Day Month Year` - Where `hh` is the hour (0-23), `mm` is minutes (0-59), `ss` is seconds (0-59), `Day` is the day of the month (0-31), `Month` is the full name of the month, and `Year` is the current year in the format of `YYYY`.
-181. Access the vManage GUI through a web browser on a device connected to the Control Plane network. For example, in the COSMIAC RAPID Lab Environment, a Laptop was physically connected to the network in which the control plane resided, so vManage was accessed through a Firefox browser through the IP of vManage on that network (Which was 10.10.0.42 for the COSMIAC-RAPID Lab Environment
-182. Hover over `Configuration` on the left side bar, and click on `WAN Edges` under the `Devices` heading. This will take you to the list of WAN Edges allocated to your Cisco SD WAN account.
-183. Generate a bootstrap config by clicking on the `...` under the `Actions` column on an available WAN Edge, and click on `Generate Bootstrap Configuration`.
-184. Ensure that for the configuration, `Cloud-Init` is the selected option. Click on the `OK` button at the bottom right of this window.
-185. Note the `uuid` and the `otp` that the bootstrap configuration generates. This will be ***VERY IMPORTANT***.
-186. Go back to your ESXi GUI and navigate back to your Source edge router. Log back into the router if necessary. Then enter the command in the following step
-187. `hostname# request platform software sdwan vedge_cloud activate chassis-number (uuid) token (otp)`
+167. `hostname# show clock` - Clock will likely be in UTC format. If time is off, adjust using next steps. Otherwise, skip step 168.
+168. `hostname# clock set hh:mm:ss Day Month Year` - Where `hh` is the hour (0-23), `mm` is minutes (0-59), `ss` is seconds (0-59), `Day` is the day of the month (0-31), `Month` is the full name of the month, and `Year` is the current year in the format of `YYYY`.
+169. Access the vManage GUI through a web browser on a device connected to the Control Plane network. For example, in the COSMIAC RAPID Lab Environment, a Laptop was physically connected to the network in which the control plane resided, so vManage was accessed through a Firefox browser through the IP of vManage on that network (Which was 10.10.0.42 for the COSMIAC-RAPID Lab Environment
+170. Hover over `Configuration` on the left side bar, and click on `WAN Edges` under the `Devices` heading. This will take you to the list of WAN Edges allocated to your Cisco SD WAN account.
+171. Generate a bootstrap config by clicking on the `...` under the `Actions` column on an available WAN Edge, and click on `Generate Bootstrap Configuration`.
+172. Ensure that for the configuration, `Cloud-Init` is the selected option. Click on the `OK` button at the bottom right of this window.
+173. Note the `uuid` and the `otp` that the bootstrap configuration generates. This will be ***VERY IMPORTANT***.
+174. Go back to your ESXi GUI and navigate back to your current edge router. Log back into the router if necessary. Then enter the command in the following step
+175. `hostname# request platform software sdwan vedge_cloud activate chassis-number (uuid) token (otp)`
     For example:
     `hostname# request platform software sdwan vedge_cloud activate chassis-number C8K-8943C275-7B78-1E88-B761-4F8045EB38A1 token e60cbdd624774ef7bd45fab8bc40c5ac`
-188. The prior command is lengthy, so **ensure** that you have the ***correct values WITHOUT any typos***. This will onboard the edge to the SD WAN fabric.
-189. Verify that your edge router has complete control plane connectivity.
-#### Sink Edge
+176. The prior command is lengthy, so **ensure** that you have the ***correct values WITHOUT any typos***. This will onboard the edge to the SD WAN fabric.
+177. Verify that your edge router has complete control plane connectivity.
