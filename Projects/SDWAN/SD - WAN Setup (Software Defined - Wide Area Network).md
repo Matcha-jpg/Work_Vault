@@ -97,6 +97,12 @@ Although the set of instructions are separated by component, following this inst
 
 ***PLEASE READ THE ENTIRE STEP BEFORE ENTERING A COMMAND***
 
+## AWS Setup
+
+### EC2
+
+### Security Groups
+
 ## ESXi Hypervisor
 
 Connect to the host machine via its DHCP Ip given to it by the Palo Alto Firewall. In our setup, this IP was `10.10.0.2`.
