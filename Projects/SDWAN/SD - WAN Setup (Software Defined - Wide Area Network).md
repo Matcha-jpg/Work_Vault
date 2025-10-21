@@ -95,14 +95,66 @@ This instruction set will also be separated into sections relating to the specif
 
 Although the set of instructions are separated by component, following this instruction set top down should ensure full system functionality, as long as the differences in lab setups are handled accordingly.
 
+Certain names within this setup documentation may differ from existing names and naming schemes in existing COSMIAC-RAPID Lab Environment infrastructure. This may be due to a premature naming scheme, a lack thereof, or missing/lacking access to related systems and/or lacking access to communication with associated personnel that have access to the system.
+
 ***PLEASE READ THE ENTIRE STEP BEFORE ENTERING A COMMAND***
 
 ## AWS Setup
 
-### EC2
+This will be a brief AWS setup, which will consist of configuring a security group to allow SD-WAN related traffic, and configuring an EC2 instance with that security group to act as the public facing WAN interface for the Cisco Edge router in the COSMIAC-RAPID Lab Environment. If you are familiar with AWS and how to set up and launch an EC2 instance, skip to the `EC2 Linux Box Configuration` section, where we will discuss the `iptables` commands utilized in ensuring proper network communication happens through the EC2 instance.
 
-### Security Groups
+This setup will utilize the AWS Web Console rather than the AWS command line interface, as the Console GUI is more user-friendly for a general audience, and thus will expedite Lab Environment setup. 
 
+### VPC and Security Groups
+
+Security groups are essentially your virtual firewall rules. Security Groups in AWS allow you to configure in your network the allowed ports/types of traffic, and whether that traffic is allowed in either the inbound or outbound direction. This ensures that your network is as open or as secure as you require it to be in your implementation/Lab Environment. 
+
+To reach your security group configuration, you will have to first navigate to the Virtual Private Cloud (VPC) service in AWS. VPCs are essentially your own private, virtualized network infrastructure in the cloud, where you can apply/create multiple security groups associated with the VPC, and assign them as needed to the services you create/utilize within the AWS cloud infrastructure. This is also where you would configure the other aspects of your Cloud network, such as Network Access Control Lists (NACLs), Network Load Balancers, and a range of other essential network configuration tools that help make your cloud environment as secure as you require.
+
+Security Groups are not to be confused with Network Firewalls among the VPC Services. Security groups allow for a per-instance firewall, meaning it can apply to singular instances, or a smaller group of instances. Network Firewalls however have a much broader scope, and encompasses the entire VPC it is assigned to, rather than individual/group instances within the VPC. Network Firewalls also allow for a much more granular inspection of Network Traffic, since it operates/encompasses the VPC level of functionality.
+
+This section will first create a VPC where you will then set up your security group in, primarily for good networking practice and network segmentation. You *can* use the default VPC that is created within your account, but it is advised you construct a specific VPC to handle the SD WAN pieces that you have contained within the AWS Cloud space.
+
+#### VPC Setup
+
+1. Navigate to the VPC Console Menu by utilizing the search bar on the AWS Web Console GUI. ![[Search_VPC.png]]
+   
+2. Once in the VPC Console landing page, click on the `Create VPC` button in the middle. This will bring you to the VPC Creation Menu. ![[Create_VPC.png]]
+
+3. For the `Resources to create`, choose VPC Only.
+4. For the `Name tag`, this field is optional, but recommended to name, so you have an identifier for your VPC. Follow your Lab Environment's naming convention, but you may use the example below for our simplicity.
+5. For the IPv4 CIDR (Classless Inter-Domain Routing) Block, choose the IP range that you require, though you may use the example below for simplicity, with the only exception being that the range is already in use by another VPC in your account. The `/(Number)` parameter portion of the CIDR Block essentially denotes the amount of IPs you can allocate/have within that CIDR block. In a `/24` configuration, we have 256 total IP addresses, and 254 total ***addressable*** IP addresses.
+6. Leave the rest of the settings at the default, scroll all the way down, and then click on the `Create VPC` button at the bottom right.![[Create_SDWAN_VPC.png]]![[Create_VPC2.png]]
+
+#### Subnet Setup
+
+1. In the VPC Console Menu, open the dashboard using the Hamburger icon menu if the left sidebar has not already been opened, and click on the `Subnets` option. Afterwards, click on the `Create subnet` button at the top right of the screen to enter Subnet creation. ![[Create_Subnet.png]]
+   
+2. Give your subnet a name. 
+3. Choosing `No preference` for the availability zone will have AWS pick arbitrarily which AZ your subnet is a part of. You may leave that as your choice, unless specifically stated elsewhere if you are only basing your setup off of the COSMIAC-RAPID Lab Environment. 
+4. Your VPC CIDR Block should already be specified as the default that was created earlier. Your subnet CIDR Block can be set as the default that AWS Suggests, (which in the configuration, if using the same exact settings, is `10.0.1.0.28`) but you still have to fill in the blank yourself. ![[Subnet_Config.png]]
+5. Add any additional subnets you deem necessary by using the `Add new subnet` button provided at the end of the configuration menu, but note that the COSMIAC-RAPID Lab Environment only utilized one (1) subnet.
+6. Click on the `Create subnet` button to finish creating the subnet.
+#### Security Group Setup
+
+1. In the VPC Console Menu, open the dashboard using the Hamburger icon menu if the left sidebar has not already been opened, scroll down to the `Security Group` option, and click on it. Afterwards, click on the `Create security group` button at the top right of the screen. ![[Click_Create_SG.png]]
+   
+2. Name your Security Group.
+3. Add a description for your security group
+4. Choose the VPC that was created earlier, unless using default VPC.![[SG_Basic_Details.png]]
+
+5. The primary goal is to allow the necessary inbound traffic so that SD-WAN functionality is unimpeded. Click on `Add rule` in the `Inbound rules` Section. There are multiple rules that need to be added, which will be listed below. ![[SG_Add_Rule.png]]
+   
+	1. `DTLS` - Choose `Custom UDP` under `Type`, input `12346-12445` under `port range`, and `Custom` under the `Source`. The `Source` is the IP that the traffic will be coming from. This source will be from your Control Plane, which in the COSMIAC-RAPID Lab Environment was hosted on the ESXi, behind the Palo Alto Firewall's Public IP: `138.199.102.114`. Note that the `Source` has to be denoted in CIDR Block format, so the input here for the COSMIAC-RAPID Lab Environment would be `138.199.102.114/32`. `Description` is optional, but assists in identifying rules and reasonings later on. The resulting rule should look similar to the below. ![[DTLS_SG.png]]
+	2. TLS - Choose `Custom TCP` under`Type`, input `23456-24757` under `port range`, and `Custom` under the `Source`. The `Source` is the IP that the traffic will be coming from. This source will be from your Control Plane, which in the COSMIAC-RAPID Lab Environment was hosted on the ESXi, behind the Palo Alto Firewall's Public IP: `138.199.102.114`. Note that the `Source` has to be denoted in CIDR Block format, so the input here for the COSMIAC-RAPID Lab Environment would be `138.199.102.114/32`. `Description` is optional, but assists in identifying rules and reasonings later on. The resulting rule should look similar to the below. ![[TLS_SG.png]]
+	3. IPsec (No Nat) - Choose `Custom UDP` under `Type`, input `500` under `port range`, and `Custom` under the `Source`. The `Source` is the IP that the traffic will be coming from. This source will be from your Control Plane, which in the COSMIAC-RAPID Lab Environment was hosted on the ESXi, behind the Palo Alto Firewall's Public IP: `138.199.102.114`. Note that the `Source` has to be denoted in CIDR Block format, so the input here for the COSMIAC-RAPID Lab Environment would be `138.199.102.114/32`. `Description` is optional, but assists in identifying rules and reasonings later on. The resulting rule should look similar to the below.  
+6. 
+   
+
+### EC2 Instance Launch Configuration
+
+
+### EC2 Instance Linux Box Configuration
 ## ESXi Hypervisor
 
 Connect to the host machine via its DHCP Ip given to it by the Palo Alto Firewall. In our setup, this IP was `10.10.0.2`.
