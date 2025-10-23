@@ -97,6 +97,16 @@ Although the set of instructions are separated by component, following this inst
 
 Certain names within this setup documentation may differ from existing names and naming schemes in existing COSMIAC-RAPID Lab Environment infrastructure. This may be due to a premature naming scheme, a lack thereof, or missing/lacking access to related systems and/or lacking access to communication with associated personnel that have access to the system.
 
+Things to have at the ready before you start:
+1. Your StarLink Public IP
+   For the COSMIAC-RAPID Lab Environment, this was `143.105.158.123`
+   
+2. Your EC2's Elastic IP (Which is its public IP)
+   For the COSMIAC-RAPID Lab Environment, this was `13.218.134.192`
+   
+3. The Public IP of your Palo Alto Firewall
+   For the COSMIAC-RAPID Lab Environment, this was `138.199.102.114`
+
 ***PLEASE READ THE ENTIRE STEP BEFORE ENTERING A COMMAND***
 
 ## AWS Setup
@@ -137,6 +147,10 @@ This section will first create a VPC where you will then set up your security gr
 6. Click on the `Create subnet` button to finish creating the subnet.
 #### Security Group Setup
 
+Security Groups in AWS as stated above, act as sort of instance-based virtual firewalls. They apply specific policies that can apply to one specific instance in your VPC, or multiple instances at the same time if there is more than one service that needs the same rules. These rules are **stateful**, meaning that any connection made from an internal source (within the VPC that has the associated security group attached) will implicitly allow return traffic that utilizes that same connection.
+
+Now, while the rules are stateful, we will still explicitly allow some services to ensure their functionality through the fabric. 
+
 1. In the VPC Console Menu, open the dashboard using the Hamburger icon menu if the left sidebar has not already been opened, scroll down to the `Security Group` option, and click on it. Afterwards, click on the `Create security group` button at the top right of the screen. ![[Click_Create_SG.png]]
    
 2. Name your Security Group.
@@ -145,15 +159,112 @@ This section will first create a VPC where you will then set up your security gr
 
 5. The primary goal is to allow the necessary inbound traffic so that SD-WAN functionality is unimpeded. Click on `Add rule` in the `Inbound rules` Section. There are multiple rules that need to be added, which will be listed below. ![[SG_Add_Rule.png]]
    
-	1. `DTLS` - Choose `Custom UDP` under `Type`, input `12346-12445` under `port range`, and `Custom` under the `Source`. The `Source` is the IP that the traffic will be coming from. This source will be from your Control Plane, which in the COSMIAC-RAPID Lab Environment was hosted on the ESXi, behind the Palo Alto Firewall's Public IP: `138.199.102.114`. Note that the `Source` has to be denoted in CIDR Block format, so the input here for the COSMIAC-RAPID Lab Environment would be `138.199.102.114/32`. `Description` is optional, but assists in identifying rules and reasonings later on. The resulting rule should look similar to the below. ![[DTLS_SG.png]]
-	2. TLS - Choose `Custom TCP` under`Type`, input `23456-24757` under `port range`, and `Custom` under the `Source`. The `Source` is the IP that the traffic will be coming from. This source will be from your Control Plane, which in the COSMIAC-RAPID Lab Environment was hosted on the ESXi, behind the Palo Alto Firewall's Public IP: `138.199.102.114`. Note that the `Source` has to be denoted in CIDR Block format, so the input here for the COSMIAC-RAPID Lab Environment would be `138.199.102.114/32`. `Description` is optional, but assists in identifying rules and reasonings later on. The resulting rule should look similar to the below. ![[TLS_SG.png]]
-	3. IPsec (No Nat) - Choose `Custom UDP` under `Type`, input `500` under `port range`, and `Custom` under the `Source`. The `Source` is the IP that the traffic will be coming from. This source will be from your Control Plane, which in the COSMIAC-RAPID Lab Environment was hosted on the ESXi, behind the Palo Alto Firewall's Public IP: `138.199.102.114`. Note that the `Source` has to be denoted in CIDR Block format, so the input here for the COSMIAC-RAPID Lab Environment would be `138.199.102.114/32`. `Description` is optional, but assists in identifying rules and reasonings later on. The resulting rule should look similar to the below.  
-6. 
-   
+   The structure is as follows:
+   - Type: Type of communication
+   - Protocol: Internet protocol used to facilitate the type of communication
+   - Port Range: Range of ports the communication encompasses.
+   - Source: Origin of network traffic associated with the communication. This is in the form of an IP, which has to be denoted in CIDR Block Format (x.x.x.x/s)
+   - Description: Optional field utilized for a descriptor for the rule that was made.
+
+	1. `DTLS` 
+	    - Type: `Custom UDP` 
+	    - Port Range: `12346-12445` 
+	    - Source: `Custom`, Palo Alto Firewall Public IP - (For COSMIAC-RAPID Lab Environment, this value was `138.199.102.114/32`) 
+	      The resulting rule should look similar to the below. ![[DTLS_SG.png]]
+	      
+	2. TLS 
+		- Type: `Custom TCP` 
+	    - Port Range: `23456-24757` (This is the range used for the COSMIAC-RAPID Lab Environment, though this could very well be different in another implementation. Ranges for TLS were slightly confusing and hard to find documentation for) 
+	    - Source: `Custom`, Palo Alto Firewall Public IP - (For COSMIAC-RAPID Lab Environment, this value was `138.199.102.114/32`) 
+	      The resulting rule should look similar to the below. ![[TLS_SG.png]]
+	      
+	3. IPSec (No NAT)
+		- Type: `Custom UDP` 
+	    - Port Range: `500` 
+	    - Source: `Custom`, StarLink Public IP - (For COSMIAC-RAPID Lab Environment, this value was `143.105.158.123/32`) 
+	      The resulting rule should look similar to the below. ![[IPSec_NoNat_SG.png]]
+	      
+	4. IPSec (NAT)
+		- Type: `Custom UDP` 
+	    - Port Range: `4500` 
+	    - Source: `Custom`, StarLink Public IP - (For COSMIAC-RAPID Lab Environment, this value was `143.105.158.123/32`) 
+	      The resulting rule should look similar to the below. ![[IPSec_NAT_SG.png]]
+	      
+	5. BGP
+		- Type: `Custom UDP` 
+	    - Port Range: `3784-3785` 
+	    - Source: `Custom`, StarLink Public IP - (For COSMIAC-RAPID Lab Environment, this value was `143.105.158.123/32`) 
+	      The resulting rule should look similar to the below. ![[BGP_SG.png]]
+	      
+	6. BGP (Multi-Hop)
+		- Type: `Custom UDP` 
+		- Port Range: `4784` 
+	    - Source: `Custom`, StarLink Public IP - (For COSMIAC-RAPID Lab Environment, this value was `143.105.158.123/32`) 
+	      The resulting rule should look similar to the below. ![[BGP_Multihop_SG.png]]
+	      
+	7. SSH (From Company Network (LaunchPad @ Cosmiac))
+		- Type: `Custom UDP` 
+		- Port Range: `4784` 
+	    - Source: `Custom`, Your Company's Public IP - (For COSMIAC-RAPID Lab Environment, this value was `138.199.102.101/32`) 
+	      The resulting rule should look similar to the below. ![[SSH_LaunchPad_SG.png]]
+	8. SSH (From Palo Alto Firewall)
+		- Type: `Custom UDP` 
+		- Port Range: `4784` 
+	    - Source: `Custom`, Palo Alto Firewall Public IP - (For COSMIAC-RAPID Lab Environment, this value was `143.105.158.123/32`) 
+	      The resulting rule should look similar to the below. ![[SSH_PAF_SG.png]]
+6. (Optional) Make a tag to associate your security group with, for housekeeping and auditing purposes.
+7. Finish creating your security group by scrolling down and clicking `Create security group`. ![[Finish_Create_SG.png]]
 
 ### EC2 Instance Launch Configuration
 
+AWS EC2, otherwise known as Amazon Web Services Elastic Compute Cloud, is a service provided by AWS that allows you to host an instance of a machine on the cloud. It is essentially a virtual machine provisioning service that allows you to deploy an instance, or multiple instances, of a particular machine image and run your services (web or otherwise) on it, while AWS Hosts the physical hardware.
+
+1. Navigate to the `EC2` console by using the search bar at the top of the Management Console webpage. ![[Search_EC2.png]]
+   
+2. Open the EC2 Console Dashboard using the hamburger icon at the top left of the webpage if not already open, and then click on the `Instances` option in the sidebar. Then, click on the `Launch instances` button at the top right of the webpage. ![[Launch_Instance.png]]
+   
+3. Name the EC2 instance according to your naming scheme/standards, or use the example below.
+4. Click on the `Quick Start` tab if not already on it, and then choose the `Ubuntu` AMI. It should default to an Ubuntu Server 24.04 image, but if not, choose an Ubuntu 24.04 image. Leave the rest of the settings as defaults, unless you see discrepancies with the defaults in your setup vs the example below. ![[EC2_Config_1.png]]
+   
+5. Choose an instance type as depicted by your setup instructions from associated personnel. If wishing to mirror the COSMIAC-RAPID Lab Environment, choose `c6id.large`. ![[Select_Instance_Type.png]]
+   
+6. If you do not already have a designated test/lab key pair from associated personnel, follow the below instructions to make a key pair specific for this SD WAN Configuration. Otherwise, select your preferred key pair. This is the way you will gain SSH access to the instance.
+	1. Click on the `Create new key pair` button. This will bring up the key pair creation window. ![[Create_Key_Pair.png]]
+	2. Name your new Key Pair according to your naming scheme, or use the example below.
+	3. Choose `RSA` as the `Key pair type`.
+	4. Choose `.pem` as the Private key file format. This is important as this is the private key format that SSH Utilizes.
+	5. Create the key pair using the `Create key pair` button ![[Confirm_KP.png]]
+
+7.  Reload available key pairs by clicking on the clockwise circle arrow, and select your preferred key pair. ![[Select_KP.png]]
+   
+8. In the `Network settings` section, first click on the `Edit` Button at the top right. Afterwards, a more granular set up section should replace the `Network settings` section. ![[Edit_Network_Settings.png]]
+   
+9. Choose the VPC created earlier. This will give you access to the subnets and security groups associated with the VPC.![[Select_VPC.png]]
+10. If your VPC was preconfigured for you, or you are selecting an existing/in the default VPC, you may have access to more subnets than what you created. Choose the subnet that you created earlier in this documentation if one was not provided for you by associated personnel. ![[Select_Subnet.png]]
+
+11. Enable the `Auto-assign public IP` setting. ![[Enable_AutoAssign_IP.png]]
+
+12. Click on `Select existing security group`, and then choose the Security Group(s) that you created earlier/were instructed to use. ![[Select_SG.png]]
+
+13. Leave the rest as default. review the summary at the far right of the webpage, and confirm that the settings are correct, then click `Launch instance`. ![[Launch_EC2.png]]
+
+### EC2 Network Interface Configuration
+
+The AWS setup portion of this instruction set was done within AWS Commercial **Cloud**, not on AWS Commercial **Outpost**. This section will be updated in the future, as the network configuration is different on the outpost than in cloud, as all the cloud interfaces are virtualized and provisioned by AWS themselves, while an AWS Outpost is a physical server hosted on-prem (In this case, in the COSMIAC-RAPID Lab Environment at COSMIAC LaunchPad), and the on-prem outpost has more Network Interface configurability as we have access to the physical hardware provided by AWS.
+ 
 ### EC2 Instance Linux Box Configuration
+
+1. SSH into the EC2 instance with a machine/device on one of the allowed networks from the Security group using the command:
+   `ssh -i <your_key_pair_file.pem> ubuntu@<youe_elastic_ip_here>`
+   For example, the command to SSH into the COSMIAC-RAPID EC2 Instance was:
+   `ssh -i cosmiac-rapid-ec2.pem ubuntu@13.218.134.192`
+   **NOTE**: That is not the actual name of the file. It is obfuscated for security reasons.
+2. When in the EC2 instance, run the following commands:
+	1. `sudo iptables -A FORWARD -i ens6 -o ens5 -j ACCEPT`
+	2. `sudo iptables -A FORWARD -i ens5 -o ens6 -m state --state RELATED,ESTABLISHED -j ACCEPT`
+	3. `sudo iptables -t nat -L POSTROUTING -n -v`
+	4. `sudo iptables -t nat -L POSTROUTING -o ens5 -j MASQUERADE`
+	**NOTE**: `ens5` and `ens6` are likely to be different in your configuration. For reference, `ens5` is the WAN facing/Public/Untrust Zone (in other words, the interface used to access public internet), and `ens6` is the LAN facing/private/Trusted Zone (in other words, the interface for the LAN interface, where your client devices connect to. In this case, our only 'client' is the virtual edge router.)
 
 ## ESXi Hypervisor
 
