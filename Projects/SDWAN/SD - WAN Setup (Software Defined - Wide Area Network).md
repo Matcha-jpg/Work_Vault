@@ -13,7 +13,7 @@ There are more items that you can configure for more granularity, but those sett
 
 ESXi is a Bare-metal Hypervisor from VMWare that overhauls a server's OS (in our case, a Dell Server), which allows for the efficient provisioning of server hardware and resources to host and deploy Virtual Machines (VMs) on. The ESXi hypervisor is what will be utilized to deploy all associated virtual devices necessary for the COSMIAC lab environment.
 
-The GUI of ESXi is relatively intuitive and user friendly, but it having background knowledge in hosting virtual environments helps with navigation and deployment immensely. There are a lot of tools at the operator's disposal, with the ability to configure many aspects of the deployment. 
+The GUI of ESXi is relatively intuitive and user friendly, but it having background knowledge in hosting virtual environments helps with navigation and deployment immensely. There are a lot of tools at the operator's disposal, with the ability to configure many aspects of the deployment. <div style="page-break-after: always"></div>
 
 There are configurations for Virtual Machines, Storage, and Networking. Virtual Machines is where you will be deploying and configuring your devices. Storage is where you store any .iso, .ova files that your VMs will use, as well as hosting/representing any deployed VM and their contents. Networking is where you will configure your virtual Network infrastructure, creating vSwitches, port groups, and the such for your VMs to connect to via a Network Adapter on the VM.
 
@@ -45,7 +45,7 @@ The initial setup for both edges is quite simple, though to configure the proper
 
 The edges also need to be programmed with the public ip of vBond, and the associated udp port 12346 for DTLS (Datagram Transport Layer Security) protocol. This allows them to begin the system onboarding process to get the edge to join onto the SD-WAN Fabric. The first step is the initial bootstrap CLI configuration. This process involves accessing vManage's GUI through http, and generating a bootstrap configuration for a WAN edge there. This step will be outlined later in this documentation
 
-The two edges will require at minimum 2 Network Adapters configured on the ESXi host. Network Adapter 1/GigabitEthernet1 (As denoted on a cEdge/vEdge) will be our WAN (Wide Area Network) (public facing/untrust zone) interface, and Network Adapter 2/GigabitEthernet2 will be our LAN (Local Area Network) (internal/trusted zone) interface.  The LAN interface will double as a DHCP server, allowing clients connected to the same port group to be leased a private IP address within the associated LAN subnet.
+The two edges will require at minimum 2 Network Adapters configured on the ESXi host. Network Adapter 1/GigabitEthernet1 (As denoted on a cEdge/vEdge) will be our WAN (Wide Area Network) (public facing/untrust zone) interface, and Network Adapter 2/GigabitEthernet2 will be our LAN (Local Area Network) (internal/trusted zone) interface.  The LAN interface will double as a DHCP server, allowing clients connected to the same port group to be leased a private IP address within the associated LAN subnet.<div style="page-break-after: always"></div>
 
 After the edges are configured and have complete control plane connectivity, tunnels between edges will be created, and connectivity between sites should be established. The *Software Defined* portion of SD WAN handles the tunnel creation through the advertisement of routing and policies from the vSmart (Controller) to the Distant Edge Devices.
 
@@ -57,7 +57,7 @@ There were multiple problems with the initial setup of this lab environment, so 
 	This Lab environment utilizes an EC2 Instance not as a device that directs traffic through its interfaces from one place to another, but as another router (NOT EDGE ROUTER) that acts as our NAT device that our Edge router is connected to. Edge routers being behind NAT devices in commercial deployments is not uncommon, and a valid way to showcase layered Network infrastructure compatibility with SD WAN deployments, but there are important NAT caveats to pay attention to and avoid as they will inherently fail to work in an SD WAN environment. That list is delineated in this image below. ![[NAT-Compatibility.png]]
 
 * ### Edge Router Behind NAT Device
-	This is an important issue to outline as this deals with what IPs get advertised in the Edge router's TLOCs (Transport Locators). If directly connecting to the Control Plane on a LAN interface, the Edge Router will advertise the other interfaces it has on the Transport VPN using the configured IP on the device.
+	This is an important issue to outline as this deals with what IPs get advertised in the Edge router's TLOCs (Transport Locators). If directly connecting to the Control Plane on a LAN interface, the Edge Router will advertise the other interfaces it has on the Transport VPN using the configured IP on the device.<div style="page-break-after: always"></div>
 	
 	This means that, if the router is behind a NAT Device, then the Edge Router will advertise its ***PRIVATE*** IP to the SD WAN Fabric. This is an issue, as other routers will try to establish a tunnel to this ***PRIVATE*** IP through the ***PUBLIC*** internet. This is inherently impossible in normal networking. The way that this is subverted is by connecting to vBond through the public internet, as vBond has an embedded STUN (Simple Traversal Utilites for NAT) Server, and can thus help Edge routers/Control Plane devices behind a NAT Device become *NAT Aware*. This is the case for our lab setup, as our Sink Edge Router is connected behind the EC2 Instance that acts as this NAT Device.
 
@@ -69,7 +69,7 @@ There were multiple problems with the initial setup of this lab environment, so 
 	The Non-Air-Gapped environment nuance is also important because, as stated earlier, we are utilizing Commercial Internet Services to construct our SD WAN fabric, leading us to a deployment that is much closer to a Commercial/Business deployment of Cisco SD WAN infrastructure. This means that the control plane has to be publicly routable to the internet. There are security risks associated with this, and to address those security risks, the Palo Alto Firewall is our answer, only allowing traffic from associated IPs and Ports to access the control plane.
 
 * ### Control Plane all behind ONE NAT Device with only ONE Public IP
-	This is a particular quick in our setup that caused much confusion and frustration, as since we only had a **singular public IP** to work with, that made communication to the control plane much more complex than that of a normal commercial/business deployment. Normal, Cisco suggested deployment methods mark the simplest deployment as giving each Control Plane device a public IP, but that can be expensive depending on the budget, or complications with Company-Owned IP allocations. There are deployments around this, although less suggested due to the complexity they require.
+	This is a particular quick in our setup that caused much confusion and frustration, as since we only had a **singular public IP** to work with, that made communication to the control plane much more complex than that of a normal commercial/business deployment. Normal, Cisco suggested deployment methods mark the simplest deployment as giving each Control Plane device a public IP, but that can be expensive depending on the budget, or complications with Company-Owned IP allocations. There are deployments around this, although less suggested due to the complexity they require.<div style="page-break-after: always"></div>
 	
 	One such issue that arises is if they are all ALSO behind the SAME NAT Device, such as in our lab environment. This necessitates the use of what is called NAT Hairpinning/Loopback, which in simpler terms is just a way for devices/clients of the NAT Device to utilize the NAT Device's public IP to communicate with others in the same/different LAN. This is the method that we utilized in our setup. Other solutions include setting up a DMZ (De-Materialized Zone) For vSmart and vManage or just vBond, but this has yet to be explored as the previous NAT Hairpinning/Loopback solution worked to solve the problem in our case.
 	
@@ -82,9 +82,23 @@ There were multiple problems with the initial setup of this lab environment, so 
 	
 	The solution for this was to force vSmart and vManage to use TLS for control plane connections over DTLS, on two distinct ports. This allowed for the devices to still understand their public-private IP and port mappings behind a NAT Device, and establish connections to the distant edge devices.
 	
-	Again, this is purely speculation on our part, as there could be a potential bug with the version of the SD WAN Software that the lab environment uses, and thus the issue could be a SD WAN Software issue rather than a Firewall behavior issue. We are focusing efforts forward with this solution in mind, as with the current equipment, this is our path of least resistance.
+	Again, this is purely speculation on our part, as there could be a potential bug with the version of the SD WAN Software that the lab environment uses, and thus the issue could be a SD WAN Software issue rather than a Firewall behavior issue. We are focusing efforts forward with this solution in mind, as with the current equipment, this is our path of least resistance.<div style="page-break-after: always"></div>
 
-With all this said, the most important point here is that the Control Plane ***NEEDS*** to be publicly routable for this setup to work, especially if one or more edge routers/control plane devices are behind a NAT Device.
+## Most Important Lesson Learned and Next Steps
+
+With all this said, the most important point here is that the Control Plane **_NEEDS_** to be publicly routable for this setup to work, especially if one or more edge routers/control plane devices are behind a NAT Device.
+
+## Moving Forward and Future Impacts
+
+The COSMIAC team has purchased a new Palo Alto Firewall including a core security subscription bundle. The current system does not have an active license, which may or may not be attributed to our plane control issues, nor do we have a clientless VPN access available to us. This new hardware and license would provide a more robust system security like advanced thread prevention, advance URL filtering, or even external access to our environment. Our future SD-WAN deployments should be streamlined through the application of our lessons learned, technical insights gained from the current experimentation, and proper documentation of the accumulated knowledge.
+
+## How does this tie directly to the SDN as a whole?
+
+The current commercial SD-WAN deployment serves as a representative model for the Hybrid Space Network architecture that Joint Forces may utilize for resilient data transport and communication. The current architecture utilizes a multiple hop approach from representative Trusted Network Device (Cisco virtual router) to another. Edge users reside between a commercial SATCOM vendor, a hybrid cloud environment providing proper tunnel routing functionality for the Satellite-to-terrestrial connectivity bridge, and a fiber connection from an on-premises AWS Outpost server. This initial phase of testing provides a path towards a variety of use cases for edge users utilizing a hybrid network.
+
+Studying the components and functionality of the commercial SD-WAN at hand provides a foundation for developing a hybrid Space Data Network by leveraging mature, field-tested technologies, that offer a significant head start to the network orchestration capabilities that are required to serve interconnected DoD agencies. The RAPID program can adapt proven SD-WAN frameworks that already incorporate essential features needed for such a network such as dynamic path selection, automated failover, a centralized management, to even cloud deployment for information or components residing a high impact level.
+
+The current experimentation the COSMIAC team is working on aims to provide foundational knowledge necessary to accelerate a Hybrid SDN development by establishing performance baselines, operational procedures, and current methodologies for commercial SD-WAN deployment over a hybrid infrastructure. Validating the technical practicality of this technology over space and ground-based transport provides necessary information for defense agencies to confidently invest in.<div style="page-break-after: always"></div>
 
 
 # Step-by-Step Instructions
@@ -107,7 +121,7 @@ Things to have at the ready before you start:
 3. The Public IP of your Palo Alto Firewall
    For the COSMIAC-RAPID Lab Environment, this was `138.199.102.114`
 
-***PLEASE READ THE ENTIRE STEP BEFORE ENTERING A COMMAND***
+***PLEASE READ THE ENTIRE STEP BEFORE ENTERING A COMMAND***<div style="page-break-after: always"></div>
 
 ## AWS Setup
 
@@ -133,8 +147,8 @@ This section will first create a VPC where you will then set up your security gr
 
 3. For the `Resources to create`, choose VPC Only.
 4. For the `Name tag`, this field is optional, but recommended to name, so you have an identifier for your VPC. Follow your Lab Environment's naming convention, but you may use the example below for our simplicity.
-5. For the IPv4 CIDR (Classless Inter-Domain Routing) Block, choose the IP range that you require, though you may use the example below for simplicity, with the only exception being that the range is already in use by another VPC in your account. The `/(Number)` parameter portion of the CIDR Block essentially denotes the amount of IPs you can allocate/have within that CIDR block. In a `/24` configuration, we have 256 total IP addresses, and 254 total ***addressable*** IP addresses.
-6. Leave the rest of the settings at the default, scroll all the way down, and then click on the `Create VPC` button at the bottom right.![[Create_SDWAN_VPC.png]]![[Create_VPC2.png]]
+5. For the IPv4 CIDR (Classless Inter-Domain Routing) Block, choose the IP range that you require, though you may use the example below for simplicity, with the only exception being that the range is already in use by another VPC in your account. The `/(Number)` parameter portion of the CIDR Block essentially denotes the amount of IPs you can allocate/have within that CIDR block. In a `/24` configuration, we have 256 total IP addresses, and 254 total ***addressable*** IP addresses.<div style="page-break-after: always"></div>
+6. Leave the rest of the settings at the default, scroll all the way down, and then click on the `Create VPC` button at the bottom right.![[Create_SDWAN_VPC.png]]![[Create_VPC2.png]]<div style="page-break-after: always"></div>
 
 #### Subnet Setup
 
@@ -157,7 +171,7 @@ Now, while the rules are stateful, we will still explicitly allow some services 
 3. Add a description for your security group
 4. Choose the VPC that was created earlier, unless using default VPC.![[SG_Basic_Details.png]]
 
-5. The primary goal is to allow the necessary inbound traffic so that SD-WAN functionality is unimpeded. Click on `Add rule` in the `Inbound rules` Section. There are multiple rules that need to be added, which will be listed below. ![[SG_Add_Rule.png]]
+5. The primary goal is to allow the necessary inbound traffic so that SD-WAN functionality is unimpeded. Click on `Add rule` in the `Inbound rules` Section. There are multiple rules that need to be added, which will be listed below. ![[SG_Add_Rule.png]]<div style="page-break-after: always"></div>
    
    The structure is as follows:
    - Type: Type of communication
@@ -182,7 +196,7 @@ Now, while the rules are stateful, we will still explicitly allow some services 
 		- Type: `Custom UDP` 
 	    - Port Range: `500` 
 	    - Source: `Custom`, StarLink Public IP - (For COSMIAC-RAPID Lab Environment, this value was `143.105.158.123/32`) 
-	      The resulting rule should look similar to the below. ![[IPSec_NoNat_SG.png]]
+	      The resulting rule should look similar to the below. ![[IPSec_NoNat_SG.png]]<div style="page-break-after: always"></div>
 	      
 	4. IPSec (NAT)
 		- Type: `Custom UDP` 
@@ -219,12 +233,12 @@ Now, while the rules are stateful, we will still explicitly allow some services 
 
 AWS EC2, otherwise known as Amazon Web Services Elastic Compute Cloud, is a service provided by AWS that allows you to host an instance of a machine on the cloud. It is essentially a virtual machine provisioning service that allows you to deploy an instance, or multiple instances, of a particular machine image and run your services (web or otherwise) on it, while AWS Hosts the physical hardware.
 
-1. Navigate to the `EC2` console by using the search bar at the top of the Management Console webpage. ![[Search_EC2.png]]
+1. Navigate to the `EC2` console by using the search bar at the top of the Management Console webpage. ![[Search_EC2.png]]<div style="page-break-after: always"></div>
    
 2. Open the EC2 Console Dashboard using the hamburger icon at the top left of the webpage if not already open, and then click on the `Instances` option in the sidebar. Then, click on the `Launch instances` button at the top right of the webpage. ![[Launch_Instance.png]]
    
 3. Name the EC2 instance according to your naming scheme/standards, or use the example below.
-4. Click on the `Quick Start` tab if not already on it, and then choose the `Ubuntu` AMI. It should default to an Ubuntu Server 24.04 image, but if not, choose an Ubuntu 24.04 image. Leave the rest of the settings as defaults, unless you see discrepancies with the defaults in your setup vs the example below. ![[EC2_Config_1.png]]
+4. Click on the `Quick Start` tab if not already on it, and then choose the `Ubuntu` AMI. It should default to an Ubuntu Server 24.04 image, but if not, choose an Ubuntu 24.04 image. Leave the rest of the settings as defaults, unless you see discrepancies with the defaults in your setup vs the example below. ![[EC2_Config_1.png]]<div style="page-break-after: always"></div>
    
 5. Choose an instance type as depicted by your setup instructions from associated personnel. If wishing to mirror the COSMIAC-RAPID Lab Environment, choose `c6id.large`. ![[Select_Instance_Type.png]]
    
@@ -235,18 +249,18 @@ AWS EC2, otherwise known as Amazon Web Services Elastic Compute Cloud, is a serv
 	4. Choose `.pem` as the Private key file format. This is important as this is the private key format that SSH Utilizes.
 	5. Create the key pair using the `Create key pair` button ![[Confirm_KP.png]]
 
-7.  Reload available key pairs by clicking on the clockwise circle arrow, and select your preferred key pair. ![[Select_KP.png]]
+7.  Reload available key pairs by clicking on the clockwise circle arrow, and select your preferred key pair. ![[Select_KP.png]]<div style="page-break-after: always"></div>
    
 8. In the `Network settings` section, first click on the `Edit` Button at the top right. Afterwards, a more granular set up section should replace the `Network settings` section. ![[Edit_Network_Settings.png]]
    
 9. Choose the VPC created earlier. This will give you access to the subnets and security groups associated with the VPC.![[Select_VPC.png]]
 10. If your VPC was preconfigured for you, or you are selecting an existing/in the default VPC, you may have access to more subnets than what you created. Choose the subnet that you created earlier in this documentation if one was not provided for you by associated personnel. ![[Select_Subnet.png]]
 
-11. Enable the `Auto-assign public IP` setting. ![[Enable_AutoAssign_IP.png]]
+11. Enable the `Auto-assign public IP` setting. ![[Enable_AutoAssign_IP.png]]<div style="page-break-after: always"></div>
 
 12. Click on `Select existing security group`, and then choose the Security Group(s) that you created earlier/were instructed to use. ![[Select_SG.png]]
 
-13. Leave the rest as default. review the summary at the far right of the webpage, and confirm that the settings are correct, then click `Launch instance`. ![[Launch_EC2.png]]
+13. Leave the rest as default. review the summary at the far right of the webpage, and confirm that the settings are correct, then click `Launch instance`. ![[Launch_EC2.png]]<div style="page-break-after: always"></div>
 
 ### EC2 Network Interface Configuration
 
@@ -264,7 +278,7 @@ The AWS setup portion of this instruction set was done within AWS Commercial **C
 	2. `sudo iptables -A FORWARD -i ens5 -o ens6 -m state --state RELATED,ESTABLISHED -j ACCEPT`
 	3. `sudo iptables -t nat -L POSTROUTING -n -v`
 	4. `sudo iptables -t nat -L POSTROUTING -o ens5 -j MASQUERADE`
-	**NOTE**: `ens5` and `ens6` are likely to be different in your configuration. For reference, `ens5` is the WAN facing/Public/Untrust Zone (in other words, the interface used to access public internet), and `ens6` is the LAN facing/private/Trusted Zone (in other words, the interface for the LAN interface, where your client devices connect to. In this case, our only 'client' is the virtual edge router.)
+	**NOTE**: `ens5` and `ens6` are likely to be different in your configuration. For reference, `ens5` is the WAN facing/Public/Untrust Zone (in other words, the interface used to access public internet), and `ens6` is the LAN facing/private/Trusted Zone (in other words, the interface for the LAN interface, where your client devices connect to. In this case, our only 'client' is the virtual edge router.)<div style="page-break-after: always"></div>
 
 ## ESXi Hypervisor
 
@@ -278,7 +292,7 @@ This is what the host landing page looked like for the COSMIAC-RAPID Lab Environ
 This configuration is going to be done under the `Networking` tab of the ESXi host machine. Click on the `Networking` Tab on the far left Navigation panel on the ESXi host GUI to access the Networking GUI and the necessary Network Configuration tools for the ESXi Host Machine.
 
 This is what the `Networking` Window looks like.
-![[Networking_Landing_Page.png]]
+![[Networking_Landing_Page.png]]<div style="page-break-after: always"></div>
 #### Physical NICs
 
 In the Networking GUI Window, click on the `Physical NICs` Tab. This will display the available physical NICs on the server. The Dell Server utilized in the COSMIAC/RAPID Lab Environment has 6 physical NICs immediately available for use. The list of physical NICs are labeled `vmnic0-vmnic5` respectively.
@@ -349,7 +363,7 @@ This will be the primary source of data-flow, as the overarching goal of the sys
    **NOTE**: In the COSMIAC/RAPID Lab Environment, this port group required a VLAN ID due to the hardware configuration of the Lab environment.
 4. Choose the corresponding vSwitch that is connected to the SatCom uplinks. In the COSMIAC/RAPID Deployment, this was SatCom-WAN.
 5. Leave the Security settings as the defaults.
-6. Click on `Add` at the bottom right of the window.
+6. Click on `Add` at the bottom right of the window.<div style="page-break-after: always"></div>
    
 ##### ViaSat-PG
 
@@ -414,7 +428,7 @@ We've also utlizied port offset from the default port ranges for vManage and vSm
 Here are the steps for setting up to services:
 1. Sign into the Firewall using an internet browser and the firewall's IP address (for our setup we are connecting using the internal connection for which the firewall is our default gateway so we use default gateway address 10.10.0.1).
 2. Once in the web interface click the ribbon for 'Objects'. ![img.png](img.png)
-3. In objects click 'Services', then click 'Add'. ![img_1.png](img_1.png)
+3. In objects click 'Services', then click 'Add'. ![img_1.png](img_1.png)<div style="page-break-after: always"></div>
 4. This should open a 'Service' pop-up. In the pop-up define the name (for example for vManage dtls we named it "CiscoSdWAN_vmanage_dtls"). Define the protocol (TCP for TLS and UDP for DTLS). Then for the specified ports use the previously defined table and the ports should be placed in the 'Desination Port' section. Once those 3 are filled out click ok. Create the services for vBond, vSmart, and vManage. Below is an example of vManages services. ![img_2.png](img_2.png) ![img_3.png](img_3.png)
 5. Once all the services are define in 'Objects' click 'Service Groups', and then click 'Add'. ![img_4.png](img_4.png)
 6. You want to create service groups to combine the TLS and DTLS services into one service group for each controller and one service group for all the SD-WAN services. It should look something like the image below.![img_5.png](img_5.png)
@@ -425,9 +439,9 @@ Here are the steps for setting up to services:
 
 For security policies we are going to verbosely set allowances for the ports the control plane requires. We'll make two security policies, one for the nat hairpinning and another for port-forwarding.
 Here are the security policy steps:
-1. Click the Policies Ribbon, Security, then click add. ![img_24.png](img_24.png)
+1. Click the Policies Ribbon, Security, then click add. ![img_24.png](img_24.png)<div style="page-break-after: always"></div>
 2. A 'Security Policy Rule' pop-up should show up, and in 'General' tab create a name. For first Security policy lets configure security policy for nat hairpinning. Name the policy something like "nat_hairpin_to_vbond". ![img_25.png](img_25.png)
-3. In the 'Source' tab under 'Source Zone' click add then choose LAN as the source zone (other names could also be Inside or Trust), 'Source Address' should be any. ![img_33.png](img_33.png)
+3. In the 'Source' tab under 'Source Zone' click add then choose LAN as the source zone (other names could also be Inside or Trust), 'Source Address' should be any. ![img_33.png](img_33.png)<div style="page-break-after: always"></div>
 4. Skip the 'User' tab.
 5. In the 'Destination' tab under 'Destination Zone' click add then choose WAN as destination zone (other names could also be Outside or Untrust), in 'Destination Address' click add and then add the firewall's public address. ![img_26.png](img_26.png)
 6. Skip the 'Application' tab.
@@ -439,7 +453,7 @@ Here are the security policy steps:
 12. A 'Security Policy Rule' pop-up should show up, and in 'General' tab create a name. This security policy is for nat port-forwarding. Name the policy something like "cisco_sd_wan_port-forwarding". ![img_31.png](img_31.png)
 13. In the 'Source' tab under 'Source Zone' click add then choose WAN as source zone (other names could also be Outside or Untrust), 'Source Address' should be any. ![img_32.png](img_32.png)
 14. Skip the 'User' tab.
-15. In the 'Destination' tab under 'Destination Zone' click add then choose LAN as destination zone (other names could also be Inside or Trust), in 'Destination Address' click add and then add the firewall's public address. ![img_34.png](img_34.png)
+15. In the 'Destination' tab under 'Destination Zone' click add then choose LAN as destination zone (other names could also be Inside or Trust), in 'Destination Address' click add and then add the firewall's public address. ![img_34.png](img_34.png)<div style="page-break-after: always"></div>
 16. Skip the 'Application' tab.
 17. In the 'Service/URL Category' in the dropdown switch to select and then add the sd-wan service group that has all the services for sd-wan created previously. ![img_27.png](img_27.png)
 18. You should be able to leave the actions group as default (assuming that allow is the default action). ![img_28.png](img_28.png)
@@ -454,7 +468,7 @@ To change the order try the following:
 3. Repeat moving rules until all the security policies you created are near the top. It should something like this when you've reprioritized your security policies. ![img_38.png](img_38.png)
 
 Next commit the security policies you created.
-1. Once all the security policies are created click 'Commit'. ![img_39.png](img_39.png)
+1. Once all the security policies are created click 'Commit'. ![img_39.png](img_39.png)<div style="page-break-after: always"></div>
 2. This should open a pop-up. If you are not the only one making changes make sure the radio button is on "Commit Changes Made by: [YOUR_LOGGED_IN_ACCOUNT]". Then click commit. ![img_23.png](img_23.png)
 3. Once the commit is finished you can then move to making the NAT policies.
 
@@ -469,7 +483,7 @@ We use nat hair-pinning polices to have vSmart and vManage traffic look like its
 
 Here are the steps for setting up port-forwarding:
 1. Click the Policies Ribbon, NAT, then click add. ![img_8.png](img_8.png)
-2. A 'NAT Policy Rule' pop-up should show up, and in 'General' tab create a name. For the first NAT policy lets configure port-forwarding for vBond. Name the policy something like "cisco_sd_wan_vbond". 'NAT Type' should be ipv4. ![img_9.png](img_9.png)
+2. A 'NAT Policy Rule' pop-up should show up, and in 'General' tab create a name. For the first NAT policy lets configure port-forwarding for vBond. Name the policy something like "cisco_sd_wan_vbond". 'NAT Type' should be ipv4. ![img_9.png](img_9.png)<div style="page-break-after: always"></div>
 3. Next click 'Original Packet' tab. Add WAN as source zone (other names could also be Outside or Untrust). For 'Destination Zone' also choose WAN. 'Destination Interface' and 'Source Address' should both be any. Service should be the service group created previously for vBond for both TLS and DTLS traffic. For 'Destination Address' click add, and add the firewalls public address. See below image as an example. ![img_10.png](img_10.png)
 4. Next click 'Translated Packet' tab. 'Source Address Translation' should be none. Under 'Destination Address Translation' 'Translation Type' should be 'Static IP', 'Transalted Address' should be vBonds private address, 'Translated Port' should be blank and 'Enable DNS Rewrite' should be unchecked. See below image for example.![img_11.png](img_11.png)  
 5. Next click 'OK' and the policy created should show up in NAT. It should look like something similar to the following. ![img_12.png](img_12.png)
@@ -481,19 +495,19 @@ Next are the steps to create nat-hairpinning. We need to hair-pin vSmart and vMa
 3. Next click 'Original Packet' tab. Add LAN as source zone (other names could also be Inside or Trust). For 'Destination Zone' choose WAN (other names could also be Outside or Untrust). 'Destination Interface' should be any. 'Source Address' click add, and you should add vSmart's IP address. Service can be the service group for all control group services. For 'Destination Address' click add, and add the firewalls public address. See below image as an example. ![img_14.png](img_14.png)
 4. Next click 'Translated Packet' tab. 'Source Address Translation' the 'Translation Type' should be 'Static IP' and for the 'Translation Address' it should be the firewalls public IP. Under 'Destination Address Translation' 'Translation Type' should be 'Static IP', 'Translation Address' should be vBonds private address, 'Translated Port' should be vBond port (here we are using 12346, refer to the starting range for dtls for vBond) and 'Enable DNS Rewrite' should be unchecked. See below image for example. ![img_15.png](img_15.png)
 5. Next click 'OK' and the policy created should show up in NAT. It should look like something similar to the following. ![img_16.png](img_16.png)
-6. Next create nat hairpin rules for vManage. It should follow the same pattern you should use the same group service as the previous nat hairpinning, for source address use vManage's IP and Translated Packet tab should be the same as vSmart's.
+6. Next create nat hairpin rules for vManage. It should follow the same pattern you should use the same group service as the previous nat hairpinning, for source address use vManage's IP and Translated Packet tab should be the same as vSmart's.<div style="page-break-after: always"></div>
 
 Once all the port-forwarding and hairpinning policies are created you will need to order them as the firewall follows policy rules from highest to lowest priority.
 Priority order should be the new policies you created above the default policies that were there previously.
 To change the order try the following:
 1. In Policies Ribbon, NAT, there should be a drop down by the name of the policy. Click the move option. ![img_17.png](img_17.png)
-2. A pop-up should show up for moving your policy, set a rule and then click either move before or after (which button will depend on the current order of your rules).![img_18.png](img_18.png)
+2. A pop-up should show up for moving your policy, set a rule and then click either move before or after (which button will depend on the current order of your rules).![img_18.png](img_18.png)<div style="page-break-after: always"></div>
 3. Repeat moving rules until all the NAT policies you created are near the top. It should something like this when you've reprioritized your NAT policies. ![img_19.png](img_19.png)
 
 Next commit the NAT policies you created.
-1. Once all the NAT policies are created click 'Commit'. ![img_20.png](img_20.png)
+1. Once all the NAT policies are created click 'Commit'. ![img_20.png](img_20.png)<div style="page-break-after: always"></div>
 2. This should open a pop-up. If you are not the only one making changes make sure the radio button is on "Commit Changes Made by: [YOUR_LOGGED_IN_ACCOUNT]". Then click commit. ![img_23.png](img_23.png)
-3. Once the commit is finished you should be done with all the required firewall configurations.
+3. Once the commit is finished you should be done with all the required firewall configurations.<div style="page-break-after: always"></div>
 
 ## VM Deployment
 
@@ -505,7 +519,7 @@ This section will be split into two instruction sets, one for the Control Plane,
 ![[Create_A_VM.png]]
 ### Control Plane Devices
 
-The Control Plane devices are the central brains of the system, and are all required for Cisco SD WAN Functionality. There are three (3) control plane devices, vBond (also known as the Validator), vSmart (also known as the Controller), and vManage (also known as the Manager), all of which will be detailed in the following sections. Note that depending on the images you receive, extra VM options may need to be configured, which will be stated at the start of each section. Unfortunately, there will be no screenshots for these extra configurations, as we at the COSMIAC-RAPID Lab Environment had access to an image that had these settings already instantiated on the machine.
+The Control Plane devices are the central brains of the system, and are all required for Cisco SD WAN Functionality. There are three (3) control plane devices, vBond (also known as the Validator), vSmart (also known as the Controller), and vManage (also known as the Manager), all of which will be detailed in the following sections. Note that depending on the images you receive, extra VM options may need to be configured, which will be stated at the start of each section. Unfortunately, there will be no screenshots for these extra configurations, as we at the COSMIAC-RAPID Lab Environment had access to an image that had these settings already instantiated on the machine.<div style="page-break-after: always"></div>
 #### vBond
 
 The vBond (Validator) control plane device handles the validation of all devices, control and data plane alike. All Cisco SD WAN Devices must make first contact with vBond before any of the other SD WAN components. vBond is the window/gateway into the SD WAN Fabric, and is what helps facilitate initial route establishments between edge devices and control plane devices. 
@@ -523,22 +537,22 @@ What makes vBond so important in the entire scheme as the first point of contact
 4. Click the `Click to Select Files or Drag/Drop` option right below the `Enter a Name` box, and select the `viptela-bond-20.15.20genericx86-64.ova` OVA file, if you have it available. Otherwise you may have to download this file from the ESXi host client itself, or procure it from the associated personnel that has access to this file.
 	   1. To check if this file is in your ESXi host client, navigate to the `Storage` menu using the far left sidebar on your ESXi GUI.
 	   2. In the `Storage` Menu, there exists a table denoting the drives that are available for your ESXi host client. Above this table is a bar that should have the `Datastore browser` button. Click this button.
-	   3. This will bring up another File system-esque menu. Look through your storage options/ask associated personnel for the location where `.ova` files are stored within the ESXi host client, if any. For the COSMIAC-RAPID Lab Environment, this location was in the `ExtraStore` storage partition, in the `OVAs` directory.
+	   3. This will bring up another File system-esque menu. Look through your storage options/ask associated personnel for the location where `.ova` files are stored within the ESXi host client, if any. For the COSMIAC-RAPID Lab Environment, this location was in the `ExtraStore` storage partition, in the `OVAs` directory.<div style="page-break-after: always"></div>
 	   4. Once the file has been located/you have found the associated personnel who has access to this file, download the file onto your local machine.
    **NOTE**: This is the file that you can utilize to spin up as many vBond control plane devices as your Cisco account is allotted.![[Open_Datastore-browser.png]]![[OVA_Location.png]]
    
-5. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button. ![[Select_Storage.png]]
+5. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button. ![[Select_Storage.png]]<div style="page-break-after: always"></div>
 
  6. Select two (2) Network Mappings. You can remove a redundant one or add another if necessary for your setup later. For the vBond in the COSMIAC-RAPID Lab environment, `VM Network` was `VM Network`, and `VM Network1` was removed before the launch of vBond. More Network mappings can be made later as necessary.
     **NOTE**: If you do not know how many Network Adapters/interfaces you need refer to related diagrams/documentation for how many Network Adapters should exist in the respective control plane device. For the COSMIAC-RAPID Lab Environment, there were **two** (2) total network adapters for each edge device.
 
 7. Choose `Thick` as the Disk provisioning
-8. Uncheck `Power on automatically`. After 6-9 have been completed, click the `Next` button.![[Choose_Controller_Adapters.png]]
+8. Uncheck `Power on automatically`. After 6-9 have been completed, click the `Next` button.![[Choose_Controller_Adapters.png]]<div style="page-break-after: always"></div>
 9. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. 
-10. As mentioned in step 7, we will now remove the `VM Network1` interface. Navigate to your newly created vBond, and click on `Edit`. ![[To_vBond.png]]![[Edit_Bond.png]]
+10. As mentioned in step 7, we will now remove the `VM Network1` interface. Navigate to your newly created vBond, and click on `Edit`. ![[To_vBond.png]]![[Edit_Bond.png]]<div style="page-break-after: always"></div>
 
 11.  In this edit menu, first choose the necessary adapter for `Network Adapter 1`, and then remove `Network Adapter 2`. Once finished, click `Save` at the bottom right. ![[Edit_Control_Plane_Network_Interfaces.png]]
-12. The setup for vBond has completed upon this step. DO NOT START THE MACHINE until later.
+12. The setup for vBond has completed upon this step. DO NOT START THE MACHINE until later.<div style="page-break-after: always"></div>
 #### vManage
 
 The vManage (Manager) Control Plane Device handles the management and administration orchestration of the Cisco SD WAN Fabric. It is meant to be the central hub/authority on all management of the SD WAN Fabric, with the ability to make and replicate configurations for edge devices and control plane devices outside of vBond to make larger deployments easier and faster.
@@ -569,7 +583,7 @@ vManage also allows you to monitor the health and logs of your SD WAN Fabric, al
 
 7. Choose `Thick` as the Disk provisioning
 8. Uncheck `Power on automatically`. After 6-9 have been completed, click the `Next` button. ![[Choose_Controller_Adapters.png]]
-9. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. 
+9. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. <div style="page-break-after: always"></div>
 #### vSmart
 
 The vSmart (Controller) Control Plane Device handles the advertisement of the OMP TLOCs (Transport Locators) and route policies received from each edge device. Edge devices will communicate with vSmart, which will then advertise how the initial edge should establish, or not establish, connections within the SD WAN Fabric.
@@ -596,7 +610,7 @@ The vSmart (Controller) Control Plane Device handles the advertisement of the OM
 
 7. Choose `Thick` as the Disk provisioning
 8. Uncheck `Power on automatically`. After 6-9 have been completed, click the `Next` button.![[Choose_Controller_Adapters.png]]
-9. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. 
+9. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. <div style="page-break-after: always"></div>
 
 ### Edge Devices
 #### StarLink Source Edge
@@ -607,10 +621,10 @@ The vSmart (Controller) Control Plane Device handles the advertisement of the OM
 
 4. Click the `Click to Select Files or Drag/Drop` option right below the `Enter a Name` box, and select the `c8000v-universalk9.17.15.02a.ova` OVA file, if you have it available. Otherwise you may have to download this file from the ESXi host client itself, or procure it from the associated personnel that has access to this file.
 	   1. To check if this file is in your ESXi host client, navigate to the `Storage` menu using the far left sidebar on your ESXi GUI.
-	   2. In the `Storage` Menu, there exists a table denoting the drives that are available for your ESXi host client. Above this table is a bar that should have the `Datastore browser` button. Click this button.
+	   2. In the `Storage` Menu, there exists a table denoting the drives that are available for your ESXi host client. Above this table is a bar that should have the `Datastore browser` button. Click this button.<div style="page-break-after: always"></div>
 	   3. This will bring up another File system-esque menu. Look through your storage options/ask associated personnel for the location where `.ova` files are stored within the ESXi host client, if any. For the COSMIAC-RAPID Lab Environment, this location was in the `ExtraStore` storage partition, in the `OVAs` directory.![[Open_Datastore-browser.png]]![[OVA_Location.png]] 
 	   4. Once the file has been located/you have found the associated personnel who has access to this file, download the file onto your local machine.
-   **NOTE**: This is the file that you can utilize to spin up as many edges as your Cisco account is allotted. ![[Select_OVA.png]]
+   **NOTE**: This is the file that you can utilize to spin up as many edges as your Cisco account is allotted. ![[Select_OVA.png]]<div style="page-break-after: always"></div>
    
 5. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button. ![[Choose_storage_option.png]]
 
@@ -618,7 +632,7 @@ The vSmart (Controller) Control Plane Device handles the advertisement of the OM
     **NOTE**: If you do not know how many Network Adapters/interfaces you need refer to related diagrams/documentation for how many Network Adapters should exist in the respective edge device. For the COSMIAC-RAPID Lab Environment, there were **two** (2) total network adapters for each edge device.
 
 7. Choose `8x Large - 16GB Disk` as the deployment type
-8. Choose `Thick` as the Disk provisioning
+8. Choose `Thick` as the Disk provisioning<div style="page-break-after: always"></div>
 9. It is your choice to power on automatically or not. If planning to add/remove a Network Mapping, I suggest making sure this box is ***unchecked***. After 6-9 have been completed, click the `Next` button. ![[Configure_Router_Example.png]]
 10. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. ![[Review_Router.png]]
 
@@ -631,15 +645,15 @@ The vSmart (Controller) Control Plane Device handles the advertisement of the OM
 	   1. To check if this file is in your ESXi host client, navigate to the `Storage` menu using the far left sidebar on your ESXi GUI.
 	   2. In the `Storage` Menu, there exists a table denoting the drives that are available for your ESXi host client. Above this table is a bar that should have the `Datastore browser` button. Click this button.
 	   3. This will bring up another File system-esque menu. Look through your storage options/ask associated personnel for the location where `.ova` files are stored within the ESXi host client, if any. For the COSMIAC-RAPID Lab Environment, this location was in the `ExtraStore` storage partition, in the `OVAs` directory.
-	    ![[Open_Datastore-browser.png]]![[OVA_Location.png]]
+	    ![[Open_Datastore-browser.png]]![[OVA_Location.png]]<div style="page-break-after: always"></div>
 	   4. Once the file has been located/you have found the associated personnel who has access to this file, download the file onto your local machine. ![[Select_OVA.png]]
-   **NOTE**: This is the file that you can utilize to spin up as many edges as your Cisco account is allotted.
+   **NOTE**: This is the file that you can utilize to spin up as many edges as your Cisco account is allotted.<div style="page-break-after: always"></div>
 5. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button. ![[Choose_storage_option.png]]
  6. Select three (3) Network Mappings. You can remove a redundant one or add another if necessary for your setup later. For the Data Sink Edge Router in the COSMIAC-RAPID Lab Environment, `GigabitEthernet1` was `EC2Connection`, and `GigabitEthernet2` was `sink-vpn-100`. More Network mappings can be made later to accommodate for other SATCOM or Terrestrial ISPs.
     **NOTE**: If you do not know how many Network Adapters/interfaces you need refer to related diagrams/documentation for how many Network Adapters should exist in the respective edge device. For the COSMIAC-RAPID Lab Environment, there were **two** (2) total network adapters for each edge device.
 
 7. Choose `8x Large - 16GB Disk` as the deployment type
-8. Choose `Thick` as the Disk provisioning
+8. Choose `Thick` as the Disk provisioning<div style="page-break-after: always"></div>
 9. It is your choice to power on automatically or not. If planning to add/remove a Network Mapping, I suggest making sure this box is ***unchecked***. After 6-9 have been completed, click the `Next` button. ![[Configure_Router_Example.png]]
 
 10. Review the final page, and click `Finish` at the bottom VM Provisioning should be complete. ![[Review_Router.png]]
@@ -651,34 +665,34 @@ These Client devices will be integral to our test, as these will be where the ne
 #### Source Client
 
 Click on `Create / Register VM` in the `Virtual Machines` GUI Window.
-2. Upon opening the creation window, choose the `Create a new virtual machine` option, and click on the `Next` button at the bottom right of the creation window.
-3. Name the Virtual Machine `Data Source Client` or whatever your naming scheme dictates.
-4. Leave the `Compatibility` selection as the default selection unless otherwise specified.
-5. In the `Guest OS family` selection, choose `Linux` from the dropdown.
-6. In the `Guest OS version` selection, scroll down in the dropdown until you see `Ubuntu x64` as an option.
-7. After steps 3-6 are complete, click the `Next` button.
-8. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button. 
-9. In the `Customize settings` portion of the creation, you will see a menu denoting all virtual hardware and VM Options. Adjust these to your requirements. If setting up a client in the COSMIAC-RAPID Lab Environment, these are the suggested settings
+1. Upon opening the creation window, choose the `Create a new virtual machine` option, and click on the `Next` button at the bottom right of the creation window.
+2. Name the Virtual Machine `Data Source Client` or whatever your naming scheme dictates.
+3. Leave the `Compatibility` selection as the default selection unless otherwise specified.
+4. In the `Guest OS family` selection, choose `Linux` from the dropdown.
+5. In the `Guest OS version` selection, scroll down in the dropdown until you see `Ubuntu x64` as an option.
+6. After steps 3-6 are complete, click the `Next` button.
+7. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button. 
+8. In the `Customize settings` portion of the creation, you will see a menu denoting all virtual hardware and VM Options. Adjust these to your requirements. If setting up a client in the COSMIAC-RAPID Lab Environment, these are the suggested settings<div style="page-break-after: always"></div>
 	1. For `CPU`, this denotes the number of virtual CPUs present on the virtual machine. Choose `4` from the dropdown box. ![[Choose_CPUs.png]]
 	2. For `Memory`, this denotes how much memory is allocated to the virtual machine from the host ESXi client. In the left input box, enter `8`, and then on the right dropdown box, switch from `MB`  to `GB`. ![[Choose_Memory.png]]
-	3. Leave the `SCSI Controller 0`, `SATA Controller 0`, and `USB controller 1` as their defaults unless otherwise specified in your setup.
+	3. Leave the `SCSI Controller 0`, `SATA Controller 0`, and `USB controller 1` as their defaults unless otherwise specified in your setup.<div style="page-break-after: always"></div>
 	4. For your `Network Adapter 1`, choose `vpn-100-source`, or equivalent port group from the dropdown.![[Choose_Network_Adapter.png]]
 	5. For `CD/DVD Drive 1`, select `Datastore ISO file`, and in the window that pops up, navigate to where your Ubuntu ISO is stored. This should have already been uploaded into your ESXi Host Client, but if it is not present, contact associated personnel or documentation for assistance. The COSMIAC_RAPID Lab Environment utilized the iso `ubuntu-24.04.1-RAPID-desktop-amd64.iso`, which is a custom ISO created by Zack Daniels of the COSMIAC-RAPID Lab Group.
 	   This iso is based off of the `ubuntu-24.04.1-desktop-amd64.iso`.![[Choose_ISO_Source.png]] ![[Select_ISO_Source.png]]
 	6. Leave the rest of the settings as default and click on `Next` at the bottom right of the window.
-10. Review the configuration and click on `Finish` at the bottom right to complete your creation of the Virtual Machine.
+9. Review the configuration and click on `Finish` at the bottom right to complete your creation of the Virtual Machine.<div style="page-break-after: always"></div>
 
 #### Sink Client
 
 Click on `Create / Register VM` in the `Virtual Machines` GUI Window.
-2. Upon opening the creation window, choose the `Create a new virtual machine` option, and click on the `Next` button at the bottom right of the creation window.
-3. Name the Virtual Machine `Data Sink Client` or whatever your naming scheme dictates.
-4. Leave the `Compatibility` selection as the default selection unless otherwise specified.
-5. In the `Guest OS family` selection, choose `Linux` from the dropdown.
-6. In the `Guest OS version` selection, scroll down in the dropdown until you see `Ubuntu x64` as an option.
-7. After steps 3-6 are complete, click the `Next` button.
-8. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button. 
-9. In the `Customize settings` portion of the creation, you will see a menu denoting all virtual hardware and VM Options. Adjust these to your requirements. If setting up a client in the COSMIAC-RAPID Lab Environment, these are the suggested settings
+1. Upon opening the creation window, choose the `Create a new virtual machine` option, and click on the `Next` button at the bottom right of the creation window.
+2. Name the Virtual Machine `Data Sink Client` or whatever your naming scheme dictates.
+3. Leave the `Compatibility` selection as the default selection unless otherwise specified.
+4. In the `Guest OS family` selection, choose `Linux` from the dropdown.
+5. In the `Guest OS version` selection, scroll down in the dropdown until you see `Ubuntu x64` as an option.
+6. After steps 3-6 are complete, click the `Next` button.
+7. Choose one of the standard storage options for your new Virtual Machine, and an associated datastore. This should be a partition that can host the virtual machine, and should be listed in a table on this window. Choose whichever datastore you like, unless otherwise specified by procedures. The datastore used by the COSMIAC-RAPID Lab Environment to host all VMs was `datastore1`. Do not worry about memory persistence, as these images have ways to enforce persistent memory despite being under Standard storage. Then, click the `Next` button. 
+8. In the `Customize settings` portion of the creation, you will see a menu denoting all virtual hardware and VM Options. Adjust these to your requirements. If setting up a client in the COSMIAC-RAPID Lab Environment, these are the suggested settings
 	1. For `CPU`, this denotes the number of virtual CPUs present on the virtual machine. Choose `4` from the dropdown box. ![[Choose_CPUs_Sink.png]]
 	2. For `Memory`, this denotes how much memory is allocated to the virtual machine from the host ESXi client. In the left input box, enter `8`, and then on the right dropdown box, switch from `MB`  to `GB`. ![[Choose_Memory_Sink.png]]
 	3. Leave the `SCSI Controller 0`, `SATA Controller 0`, and `USB controller 1` as their defaults unless otherwise specified in your setup.
@@ -686,7 +700,7 @@ Click on `Create / Register VM` in the `Virtual Machines` GUI Window.
 	5. For `CD/DVD Drive 1`, select `Datastore ISO file`, and in the window that pops up, navigate to where your Ubuntu ISO is stored. This should have already been uploaded into your ESXi Host Client, but if it is not present, contact associated personnel or documentation for assistance. The COSMIAC_RAPID Lab Environment utilized the iso `ubuntu-24.04.1-RAPID-desktop-amd64.iso`, which is a custom ISO created by Zack Daniels of the COSMIAC-RAPID Lab Group.
 	   This iso is based off of the `ubuntu-24.04.1-desktop-amd64.iso`.![[Choose_ISO_Sink.png]] ![[Select_ISO_Source.png]]
 	6. Leave the rest of the settings as default and click on `Next` at the bottom right of the window.
-10. Review the configuration and click on `Finish` at the bottom right to complete your creation of the Virtual Machine.
+9. Review the configuration and click on `Finish` at the bottom right to complete your creation of the Virtual Machine.<div style="page-break-after: always"></div>
 
 ## Control Plane CLI Setup
 ### vBond
@@ -771,13 +785,13 @@ Click on `Create / Register VM` in the `Virtual Machines` GUI Window.
 2. Set new password. (Recommend using a secure password, but for an already secure lab environment, a default `admin1` password should work). 
 3. Select disk created for storage
 4. 
-   - 1. `COMPUTER_AND_DATA`
-   - 2. `DATA`
-   - 3. `COMPUTE`
-   Select persona for vManage \[1, 2, or 3]: 1
+	1. `COMPUTER_AND_DATA`
+	2. `DATA`
+	3. `COMPUTE`
+Select persona for vManage \[1, 2, or 3]: 1
 5. Are you sure? \[y/n]: y
 6. Available storage devices:
-   - 1) sdb
+	1) sdb
 7. Select storage device to use: 1
 8. would you like to format sdb? \[y/n]: y
 9. Wait 5~ minutes
@@ -815,7 +829,7 @@ Click on `Create / Register VM` in the `Virtual Machines` GUI Window.
 39. `vManage(config)# exit`
 40. `vManage# show clock`
 41. `vManage# clock set HH:MM:SS Day(1-31) Month(String) Year(YYYY)` - If not already in correct UTC Time)
-42. Install associated Cisco Certificate with assistance of associated personnel.
+42. Install associated Cisco Certificate with assistance of associated personnel.<div style="page-break-after: always"></div>
 
 ## Data Plane CLI Setup
 
