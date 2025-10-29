@@ -548,5 +548,553 @@ After this, your WAN effectively becomes **“borderless”** — identity-drive
 ---
 
 Would you like me to outline a **detailed migration checklist** (with prerequisites, integration order, and impact areas) for evolving a Cisco SD-WAN into a Borderless WAN fabric? It’s often what Cisco SEs and network architects use in design workshops.
+# Mojang Authentication
+what service/port and ip/dns name does a minecraft server use to contact mojang authentication servers? How can I configure a Cisco Edge router to allow traffic to only that specific service?
+
+###### ChatGPT said:
+
+Here’s a breakdown of what you asked: **which service/port and DNS name/IP the Minecraft (Java Edition) server uses to contact Mojang (or Microsoft’s) authentication/session servers**, and **how you could configure a Cisco Edge router (or similar) to allow ONLY that traffic**.
+
+---
+
+### What service/port/DNS does Minecraft use for authentication/session?
+
+Here are the key facts:
+
+- Minecraft (Java Edition) in “online-mode=true” will perform HTTP(s) calls to Mojang’s authentication/session infrastructure. For example:
+    
+    - The host `authserver.mojang.com` is used for login/refresh/validate. [restfulmc.cc+3Open Public APIs+3mojang-api-docs.gapple.pw+3](https://openpublicapis.com/api/mojang?utm_source=chatgpt.com)
+        
+    - The host `sessionserver.mojang.com` is used by the server (and client) to verify sessions — e.g., `hasJoined`, `join`, and profile retrieval. [GitHub Wiki Search Engine+2Open Public APIs+2](https://github-wiki-see.page/m/CosmoKotik/Minecraft-AuthSystem/wiki/Minecraft-auth-rest-api?utm_source=chatgpt.com)
+        
+    - The host `api.mojang.com` is also used for lookup and profile services. [Netify+1](https://www.netify.ai/resources/hostnames/api.mojang.com?utm_source=chatgpt.com)
+        
+- The protocol is HTTPS (thus TCP port 443) for those services. For example one Reddit user states:
+    
+    > “the ports minecraft uses are tcp 443 for login, and tcp 25565 (configurable) for the game.” [Reddit](https://www.reddit.com/r/Minecraft/comments/kodjw8?utm_source=chatgpt.com)
+    
+- The default server port for the Minecraft game itself is TCP port 25565 (when hosting a Java Edition server). [internet-security.com+1](https://internet-security.com/ports/port-25565-TCP.html?utm_source=chatgpt.com)
+    
+- Regarding IP addresses: the DNS names above (e.g., `sessionserver.mojang.com`) resolve to a large number of IPs (Microsoft / Azure front door/CDN) rather than a fixed single IP. For example, `sessionserver.mojang.com` is “associated with approx. 119 IP addresses on Azure Front Door”. [Netify](https://www.netify.ai/resources/hostnames/sessionserver.mojang.com?utm_source=chatgpt.com)
+    
+
+**In summary**:
+
+- Service to allow: HTTPS (TCP/443) outbound from your Minecraft server (or your host) to the DNS names: `authserver.mojang.com`, `sessionserver.mojang.com`, `api.mojang.com`, and possibly `api.minecraftservices.com` (the later being a newer endpoint).
+    
+- Service to allow inbound: If hosting a server for players, inbound on TCP port 25565 (unless you changed it) for the game traffic itself.
+    
+- Because the IPs are dynamic/large set (CDN) you should filter by DNS name or domain if possible, rather than by a fixed IP list.
+    
+
+---
+
+### How to configure a Cisco Edge (router/firewall) to allow only that specific service
+
+Assuming you have a Cisco Edge router/firewall (for example an edge Cisco ASA, or a Cisco ISR with ACLs, or possibly Cisco Meraki MX, etc) and you want to lock down traffic so that your Minecraft server only communicates with the required Mojang auth/session endpoints and no arbitrary internet access, here’s an outline of steps and configuration guidance:
+
+#### Pre-work
+
+1. Ensure your DNS resolution works properly for the domains above. The router or firewall must allow DNS queries so the hostnames can resolve.
+    
+2. You may want to identify the Minecraft server host’s IP (internal) and ensure NAT/port-forwarding is set for the game port (if players external to your LAN connect).
+    
+3. Determine whether your Minecraft server is making outgoing connections as part of authentication (yes it will) and which interface it uses.
+    
+
+#### Configuration outline (using Cisco ASA or similar syntax)
+
+Here’s a sample approach (you’ll adjust interface names, object names, etc):
+
+`! Define the external DNS names as network objects (if your device supports FQDN ACLs) object network OBJ_MOJANG_AUTH_SERVER   fqdn authserver.mojang.com  object network OBJ_MOJANG_SESSION_SERVER   fqdn sessionserver.mojang.com  object network OBJ_MOJANG_API   fqdn api.mojang.com  ! Optionally if using newer services: object network OBJ_MINECRAFT_SERVICES   fqdn api.minecraftservices.com  ! Define your Minecraft server host inside network object network OBJ_MC_SERVER   host 192.168.1.10    ! (your internal server IP)  ! Allow inbound game traffic (if players external) access-list ACL_INBOUND extended permit tcp any host 203.0.113.50 eq 25565    ! 203.0.113.50 is your public IP NAT to MC server (or use interface if NAT) access-group ACL_INBOUND in interface outside  ! Outbound ACL from your MC server (or entire LAN if you like) — only allow to Mojang auth/session APIs access-list ACL_MC_OUT extended permit tcp host 192.168.1.10 object OBJ_MOJANG_AUTH_SERVER eq 443 access-list ACL_MC_OUT extended permit tcp host 192.168.1.10 object OBJ_MOJANG_SESSION_SERVER eq 443 access-list ACL_MC_OUT extended permit tcp host 192.168.1.10 object OBJ_MOJANG_API eq 443 access-list ACL_MC_OUT extended permit tcp host 192.168.1.10 object OBJ_MINECRAFT_SERVICES eq 443 ! Optionally allow DNS (UDP/TCP port 53) if needed access-list ACL_MC_OUT extended permit udp host 192.168.1.10 any eq 53 access-list ACL_MC_OUT extended permit tcp host 192.168.1.10 any eq 53 ! Deny everything else outbound from that host/network if you want to be strict access-list ACL_MC_OUT extended deny ip host 192.168.1.10 any  ! Apply the ACL to the server interface or in-side network access-group ACL_MC_OUT out interface inside`
+
+#### Key points / tips
+
+- Use **FQDN network objects** if your Cisco device supports them (many newer ASA versions, Firepower, etc). This helps because Mojang’s IPs are many and change via CDN.
+    
+- If your device **does not support FQDN objects**, you’d need to approximate by allowing the known IP prefixes for Microsoft/Azure front-door/CDN as the services resolve. This is more fragile.
+    
+- Make sure DNS queries are allowed from the server so the names can resolve.
+    
+- Make sure NAT is configured for inbound game traffic if you host players from outside.
+    
+- You might also want to allow outbound DNS and perhaps NTP (UDP 123) depending on your server needs.
+    
+- Log and monitor outbound traffic: if you see the server trying to go to other destinations, you may have to expand the list (for example ancillary services like textures.minecraft.net, libraries.minecraft.net).
+    
+- Remember that the player game traffic (TCP 25565 inbound/outbound) is separate from the Mojang auth traffic. Don’t confuse the two.
+    
+- If you run multiple services on that host (Minecraft + other internet access), you may prefer to use a dedicated host or apply ACLs per host.
+    
+
+---
+
+### Caveats & things to watch
+
+- Because the Mojang auth/session servers are behind CDNs/Front-door networks, the IP addresses can change frequently (and vary by region). Relying purely on static IPs may cause authentication failures.
+    
+- Make sure you don’t inadvertently block other required endpoints: e.g., `textures.minecraft.net`, `assets.minecraft.net`, or `api.minecraftservices.com`. If your server (or clients connecting) need to fetch skins or other assets, you may need to allow those as well.
+    
+- If you use any proxies, VPNs or have unusual NAT, be sure the outbound DNS and HTTPS traffic is not blocked.
+    
+- If you ever switch your server to “offline-mode=true” (not recommended) you bypass authentication but that has other risks (security/trusted accounts).
+    
+- For very strict environments you could also enforce “only this server can talk out on 443 to those domains” and drop everything else.
+    
+
+---
+
+If you like, I can provide **sample Cisco ASA / Firepower CLI config tailored** for your exact model (including NAT, address-objects, logging) to lock down all but the needed auth traffic. Would you like that?
+
+##### You said:
+
+what is Cisco ASA
+
+###### ChatGPT said:
+
+A **Cisco ASA** (Adaptive Security Appliance) is a family of **firewall and security devices** made by Cisco Systems. It’s one of Cisco’s most widely deployed network security platforms and is commonly used as an **edge firewall**, **VPN concentrator**, and **network security gateway**.
+
+Here’s a simple breakdown 👇
+
+---
+
+### 🧱 What Cisco ASA Does
+
+Cisco ASA acts as the **main security barrier** between your internal network (like your home or company LAN) and the internet.  
+It can perform several key roles:
+
+|Function|Description|
+|---|---|
+|**Firewall**|Controls which network traffic is allowed or blocked based on rules (Access Control Lists / ACLs).|
+|**NAT (Network Address Translation)**|Translates private internal IP addresses to public ones for internet access.|
+|**VPN (Virtual Private Network)**|Supports both site-to-site and remote-access VPNs using IPsec or SSL.|
+|**Intrusion Prevention (IPS)**|Some ASA models include or integrate with Cisco’s Firepower services to detect and stop attacks.|
+|**Routing & Network Segmentation**|Can route between networks and apply different security levels (inside, outside, DMZ, etc).|
+
+---
+
+### ⚙️ Typical Deployment
+
+A common setup looks like this:
+
+`Internet ↔ [Cisco ASA Firewall] ↔ Internal Network                        |                        └─ DMZ (e.g., Web or Minecraft Server)`
+
+- The ASA filters **inbound** and **outbound** traffic.
+    
+- It decides what’s allowed (e.g., TCP port 25565 for Minecraft, HTTPS 443 for authentication).
+    
+- It can log and monitor connections for security analysis.
+    
+
+---
+
+### 🧩 Versions and Models
+
+Cisco ASA comes in different forms:
+
+- **Hardware appliances** — e.g., ASA 5506-X, 5512-X, 5525-X, etc.
+    
+- **Virtual appliance** — e.g., ASAv, which runs in VMware, AWS, Azure, etc.
+    
+- **Firepower integration** — newer ASAs can run **Firepower Threat Defense (FTD)** software for next-gen firewall features.
+    
+
+---
+
+### 🖥️ Management Options
+
+You can manage Cisco ASA via:
+
+- **CLI (Command Line Interface)** — through SSH, console, or Telnet.
+    
+- **ASDM (Adaptive Security Device Manager)** — a graphical interface via web/Java.
+    
+- **Cisco FMC (Firepower Management Center)** — if using Firepower/FTD.
+    
+
+---
+
+### 💡 In the Context of Your Question
+
+If you have a **Cisco ASA as your edge router/firewall**, you can:
+
+- Use it to **allow only Minecraft authentication traffic (HTTPS 443)** to Mojang’s domains.
+    
+- Block all other outbound internet access for that specific server.
+    
+- Control inbound access to your Minecraft server’s **game port 25565**.
+    
+
+---
+
+Would you like me to show you what a **sample Cisco ASA configuration** would look like for a Minecraft server that only talks to Mojang’s authentication servers?
+
+##### You said:
+
+CLI for a Cisco Catalyst 8kv on SDWAN Mode running IOS XE
+
+###### ChatGPT said:
+
+Excellent — you’re asking about **Cisco Catalyst 8000V (8Kv)** in **SD-WAN mode** (also known as **Cisco SD-WAN Edge**, running **IOS XE SD-WAN image**, not the classic IOS XE standalone mode).
+
+Let’s clarify the context first, then I’ll show you how the **CLI** works on that platform and how it differs from a traditional Cisco ASA or IOS router.
+
+---
+
+## 🧱 1. What You’re Running
+
+- **Device:** Cisco Catalyst 8000V (8Kv) — a **virtual router** (VNF) that can run in VMware, KVM, AWS, Azure, etc.
+    
+- **Mode:** **SD-WAN mode** (not Autonomous). That means it’s managed by **vManage / vSmart / vBond** controllers.
+    
+- **Software:** **IOS XE SD-WAN (cEdge)** image, typically version 17.x or later.
+    
+
+When the router boots in SD-WAN mode, the CLI and command set are a bit different from traditional IOS XE.  
+You’ll mostly use:
+
+- **`vshell`** — Linux shell access.
+    
+- **`vmanage` / `vsmart` / `vbond`** connectivity verification.
+    
+- **`show sdwan ...`** commands.
+    
+
+---
+
+## 🧰 2. CLI Basics in SD-WAN Mode
+
+### Enter privileged EXEC mode
+
+`router> enable router#`
+
+### Common SD-WAN Show Commands
+
+|Command|Purpose|
+|---|---|
+|`show sdwan system status`|Shows controller connections, control status, and certificate status.|
+|`show sdwan control connections`|Lists active control connections to vSmart, vBond, vManage.|
+|`show sdwan bfd sessions`|Displays data-plane tunnels between sites.|
+|`show sdwan interface`|Lists WAN interfaces and their status.|
+|`show sdwan omp peers`|Shows OMP (Overlay Management Protocol) peerings with vSmart.|
+|`show sdwan software`|Shows current and available software versions.|
+|`show sdwan version`|Displays SD-WAN software version.|
+|`show sdwan running-config`|Displays the SD-WAN configuration (similar to `show running-config`).|
+
+---
+
+## ⚙️ 3. Config Mode in SD-WAN
+
+Unlike traditional IOS XE, you **don’t configure directly from CLI** in production SD-WAN mode — you push configs from **vManage**.  
+However, you _can_ use local config mode for testing or bootstrap before onboarding to vManage.
+
+### Example: entering config mode
+
+`router# config-transaction router(config)# interface GigabitEthernet1 router(config-if)# ip address 10.1.1.1 255.255.255.0 router(config-if)# no shutdown router(config-if)# exit router(config)# commit`
+
+This uses a **transactional configuration model** — you must `commit` changes.
+
+---
+
+## 🌐 4. Example: Allowing Specific Outbound Traffic (Conceptually)
+
+While ASA uses ACLs, on SD-WAN you manage **policies** via vManage/vSmart.  
+To allow only Minecraft authentication traffic from a hosted server behind your 8Kv, you’d typically:
+
+1. Create a **Localized Data Policy** (ACL-like) in **vManage**.
+    
+2. Match:
+    
+    - Source: your Minecraft server LAN IP.
+        
+    - Destination FQDNs: `authserver.mojang.com`, `sessionserver.mojang.com`, etc. (using FQDN objects if supported).
+        
+    - Destination port: `443`.
+        
+3. Action: `permit`.
+    
+4. Then `deny` everything else.
+    
+
+CLI reference example for a **local data policy** if you were to view or apply it locally:
+
+`show sdwan policy local`
+
+or (for config inspection)
+
+`show sdwan running-config policy`
+
+---
+
+## 🧩 5. Useful Hybrid Commands
+
+|Command|Description|
+|---|---|
+|`show platform software sdwan control`|Details of SD-WAN control processes.|
+|`vshell`|Drops you into Linux shell.|
+|`request platform software sdwan software upgrade`|Trigger image upgrade.|
+|`show ip route`|Shows routing table (still available).|
+|`show int description`|Shows interface summary.|
+
+---
+
+## 🧑‍💻 6. Example Bootstrap Config (for lab/testing)
+
+If you were onboarding manually before connecting to vManage:
+
+`system  host-name C8kv-Edge1  system-ip 10.10.10.10  site-id 100  organization-name "MyOrg"  vbond 203.0.113.1 ! interface GigabitEthernet1  ip address 192.168.1.1 255.255.255.0  no shutdown  tunnel-interface   encapsulation ipsec   color biz-internet restrict   allow-service all   exit  commit`
+
+---
+
+## 🧾 7. Summary
+
+|Feature|ASA|Catalyst 8Kv (SD-WAN mode)|
+|---|---|---|
+|OS|ASA/FTD|IOS XE SD-WAN (cEdge)|
+|Management|CLI/ASDM|vManage GUI or CLI (limited)|
+|Policies|ACLs / Security Policies|Centralized SD-WAN Policies|
+|FQDN Filtering|Supported (limited)|Supported via vManage Local Policy|
+|Typical Ports|Custom / Any|Application-aware via DPI|
+
+---
+
+If you tell me:
+
+- whether your **8Kv is managed by vManage** or standalone in **CLI-only mode**, and
+    
+- what **traffic control goal** you have (e.g., restrict Minecraft server outbound to Mojang authentication servers),
+    
+
+…I can show you the exact CLI or vManage workflow for that case (with syntax and policy definitions).
+
+Would you like me to generate that?
+
+##### You said:
+
+configure that mojang authentication service using ASA through CLI on the edge router mentioned above
+
+###### ChatGPT said:
+
+Got it — you’re running a **Cisco Catalyst 8000V (C8Kv)** in **SD-WAN mode**, and you want to **configure it (through CLI)** so that your Minecraft server can **only reach Mojang’s authentication servers**, similar to what you’d do with a Cisco ASA.
+
+However, there’s an important distinction here:
+
+---
+
+### ⚠️ Key Point — ASA vs. C8Kv (SD-WAN)
+
+The **Cisco ASA** and the **C8Kv in SD-WAN mode** are **very different platforms**:
+
+|Feature|ASA|C8Kv (SD-WAN mode)|
+|---|---|---|
+|Software|ASA OS or Firepower (FTD)|IOS XE SD-WAN (cEdge)|
+|Config via|Local CLI|vManage (centralized)|
+|ACL style|`access-list` commands|Data-policy (centralized)|
+|FQDN filtering|Supported (with DNS resolution)|Supported (in vManage, not local CLI)|
+|Management|Local or ASDM|vManage → pushed policies|
+
+So, **you cannot configure a classic ASA-style ACL directly** in SD-WAN mode — those are managed via **vManage policies**, not the local CLI.
+
+If your C8Kv were in **autonomous mode** (classic IOS XE), you _could_ use ASA-like ACLs directly on the CLI.  
+But since it’s **SD-WAN mode**, you’ll handle filtering via **Localized Data Policy** (either in vManage GUI or CLI transaction).
+
+---
+
+## ✅ What You _Can_ Do via CLI (SD-WAN Mode)
+
+You can still **define a local data policy** on the 8Kv to only permit HTTPS traffic to Mojang authentication servers (by IP or FQDN).
+
+Below is a **CLI example** you can adapt.
+
+---
+
+### 🧱 Step 1: Enter configuration mode
+
+`C8kv# config-transaction`
+
+---
+
+### 🧩 Step 2: Define Localized Data Policy
+
+`C8kv(config)# policy local-data-policy MOJANG-FILTER  ! Match Minecraft server as source (internal host) C8kv(config-local-data-policy)# sequence 10 C8kv(config-local-data-policy-seq)# match source-ip 192.168.1.50/32 C8kv(config-local-data-policy-seq)# match destination-port 443 C8kv(config-local-data-policy-seq)# match destination-fqdn authserver.mojang.com C8kv(config-local-data-policy-seq)# match destination-fqdn sessionserver.mojang.com C8kv(config-local-data-policy-seq)# match destination-fqdn api.minecraftservices.com C8kv(config-local-data-policy-seq)# action accept C8kv(config-local-data-policy-seq)# exit  ! Deny all other outbound traffic from that host C8kv(config-local-data-policy)# sequence 20 C8kv(config-local-data-policy-seq)# match source-ip 192.168.1.50/32 C8kv(config-local-data-policy-seq)# action drop C8kv(config-local-data-policy-seq)# exit  C8kv(config-local-data-policy)# exit`
+
+---
+
+### 🧭 Step 3: Apply the Policy to the Correct Interface
+
+Assume your **LAN interface** is `GigabitEthernet1` (where your Minecraft server connects):
+
+`C8kv(config)# apply-policy local-data-policy MOJANG-FILTER interface GigabitEthernet1`
+
+---
+
+### ✅ Step 4: Commit and Save
+
+`C8kv(config)# commit C8kv(config)# end`
+
+---
+
+### 🧰 Step 5: Verification
+
+Check the policy is applied:
+
+`show sdwan policy local`
+
+Check traffic matches (once traffic flows):
+
+`show sdwan policy statistics local-data-policy`
+
+---
+
+## 🌐 Note on FQDN Support
+
+If FQDN matching isn’t supported in your current IOS XE SD-WAN version, you can:
+
+1. Temporarily allow `tcp/443` to `*.mojang.com` domains via wildcard (if your controller supports it), or
+    
+2. Resolve the current IPs of Mojang’s servers and use them as `match destination-ip <ip/subnet>` (less ideal since they change often).
+    
+
+---
+
+## 🧾 Summary
+
+✅ You can:
+
+- Restrict your Minecraft server to only reach Mojang authentication endpoints.
+    
+- Do it locally through a **localized data policy**.
+    
+- Manage via CLI or vManage GUI.
+    
+
+🚫 You cannot:
+
+- Use classic `access-list` syntax (that’s for ASA or IOS XE “autonomous” mode).
+    
+
+---
+
+Would you like me to show the **same configuration but for IOS XE standalone mode** (non-SD-WAN), in case you ever run the C8Kv as a traditional router/firewall? That version uses ASA-style ACLs directly.
+
+Make sure you don’t inadvertently block other required endpoints: e.g., textures.minecraft.net, assets.minecraft.net, or api.minecraftservices.com. If your server (or clients connecting) need to fetch skins or other assets, you may need to allow those as well. What are these used for?
+
+###### ChatGPT said:
+
+Excellent question — those extra **Minecraft-related domains** you mentioned (`textures.minecraft.net`, `assets.minecraft.net`, and `api.minecraftservices.com`) are part of Mojang/Microsoft’s broader infrastructure for **authentication, player profiles, and game assets**.
+
+They serve different but complementary purposes to the main authentication servers (`authserver.mojang.com` and `sessionserver.mojang.com`).
+
+Here’s a breakdown of what each does 👇
+
+---
+
+### 🧩 `api.minecraftservices.com`
+
+**Purpose:**  
+This is the **newer unified API endpoint** for Microsoft account–based Minecraft authentication and profile management.
+
+**Used for:**
+
+- Account and profile verification (post-Microsoft migration).
+    
+- Retrieving player UUIDs and profile data.
+    
+- Handling token validation for players logging in with Microsoft accounts (OAuth2-based).
+    
+- Session joins (similar to older `sessionserver.mojang.com` but under Microsoft’s domain).
+    
+
+**If blocked:**  
+Players may fail to log in, refresh tokens, or appear offline even though they have valid Microsoft/Minecraft accounts.
+
+**Typical traffic:**
+
+- Outbound HTTPS (TCP 443)
+    
+- API paths like `/authentication/login_with_xbox`, `/entitlements/mcstore`, `/minecraft/profile`
+    
+
+---
+
+### 🎨 `textures.minecraft.net`
+
+**Purpose:**  
+Hosts **player skin and cape textures** — the small PNG files that represent each user’s custom character appearance.
+
+**Used for:**
+
+- Loading and caching player skins and capes (both on clients and servers with skin lookup enabled).
+    
+- Providing texture URLs referenced in player profile JSON data.
+    
+
+**If blocked:**
+
+- Players will appear as the default **Steve/Alex** skin.
+    
+- No custom skins or capes will load for anyone (including yourself) when viewed in-game.
+    
+
+**Typical traffic:**
+
+- Outbound HTTPS (TCP 443)
+    
+- Requests like `https://textures.minecraft.net/texture/<hash>`
+    
+
+---
+
+### 📦 `assets.minecraft.net`
+
+**Purpose:**  
+Hosts **static game assets** such as sounds, language files, textures, and other content used by the Minecraft launcher and sometimes by servers for verification or version data.
+
+**Used for:**
+
+- Game launcher downloading version JSONs and resource files.
+    
+- Resource fetching during updates or asset verification.
+    
+
+**If blocked:**
+
+- Game clients might fail to update or validate properly.
+    
+- Some resource-dependent features (like version synchronization) could fail for players connecting to your server.
+    
+
+**Typical traffic:**
+
+- Outbound HTTPS (TCP 443)
+    
+- Accesses version or asset JSONs like `https://assets.minecraft.net/<version>/...`
+    
+
+---
+
+### 💡 Summary Table
+
+|Domain|Function|Required for|Effect if Blocked|
+|---|---|---|---|
+|`authserver.mojang.com`|Login validation (legacy Mojang accounts)|Authentication|Players cannot log in|
+|`sessionserver.mojang.com`|Session join verification|Multiplayer join|"Invalid session" errors|
+|`api.minecraftservices.com`|Microsoft account authentication & entitlements|Login (Microsoft)|Login/token failures|
+|`textures.minecraft.net`|Player skins & capes|In-game skin display|Default Steve/Alex skin only|
+|`assets.minecraft.net`|Game/launcher assets|Launcher & updates|Missing assets / update failures|
+
+---
+
+### ✅ Recommendation (Firewall / ACL-wise)
+
+If you’re restricting outbound HTTPS for your Minecraft server host, **allow at least these domains** to ensure full functionality:
+
+`authserver.mojang.com sessionserver.mojang.com api.minecraftservices.com textures.minecraft.net assets.minecraft.net api.mojang.com`
+
+You can keep it **HTTPS only (TCP 443)** — no other ports are required.
+
+---
+
+Would you like me to show you an updated Cisco policy example that includes **all these necessary Minecraft endpoints** so you don’t break skins or authentication?
 # New Question
-asljf
+sdfsd
