@@ -970,7 +970,7 @@ This command will show the current interfaces that your edge router has. Note do
 48. `hostname(config)# ip http client source-interface GigabitEthernetL` 
 49. `hostname(config)# ip nat pool natpool1 192.168.x.x 192.168.x.x prefix-length n` 
     This is the NAT Address pool for the LAN interface. This will specify how large your private subnet is. For example, this is the command that was used to set this up on the Data Source Edge Router:
-    `hostname(config)# ip nat pool natpool1 192.168.52.1 192.168.52.255 prefix length 24` 
+    `hostname(config)# ip nat pool natpool1 192.168.52.1 192.168.52.255 prefix-length 24` 
 
 50. `hostname(config)# ip nat inside source list global-list pool natpool1 vrf 100 match-in-vrf overload` 
 51. `hostname(config)# ip nat inside source list nat-dia-vpn-hop-access-list interface GigabitEthernetW overload`
